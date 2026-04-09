@@ -1,0 +1,183 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String    @id @default(uuid())
+  firebaseUid String    @unique @map("firebase_uid")
+  email       String    @unique
+  displayName String?   @map("display_name")
+  language    Language  @default(is)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  vehicles    Vehicle[]
+
+  @@map("users")
+}
+
+enum Language {
+  is
+  en
+}
+
+model Vehicle {
+  id             String          @id @default(uuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  make           String
+  model          String
+  year           Int
+  licensePlate   String          @unique
+  vin            String?         @unique
+  color          String?
+  fuelType       FuelType        @default(PETROL)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  serviceRecords ServiceRecord[]
+  mileageLogs    MileageLog[]
+  expenses       Expense[]
+  reminders      Reminder[]
+  documents      Document[]
+}
+
+model ServiceRecord {
+  id          String      @id @default(uuid())
+  vehicleId   String
+  vehicle     Vehicle     @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  type        ServiceType
+  mileage     Int
+  date        DateTime
+  description String?
+  cost        Decimal?    @db.Decimal(10, 2)
+  shop        String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model MileageLog {
+  id        String   @id @default(uuid())
+  vehicleId String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  mileage   Int
+  date      DateTime
+  note      String?
+  createdAt DateTime @default(now())
+}
+
+model Expense {
+  id          String      @id @default(uuid())
+  vehicleId   String
+  vehicle     Vehicle     @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  category    ExpenseCategory
+  amount      Decimal     @db.Decimal(10, 2)
+  date        DateTime
+  description String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Reminder {
+  id          String         @id @default(uuid())
+  vehicleId   String
+  vehicle     Vehicle        @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  type        ReminderType
+  dueDate     DateTime?
+  dueMileage  Int?
+  status      ReminderStatus @default(PENDING)
+  note        String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model Document {
+  id        String       @id @default(uuid())
+  vehicleId String
+  vehicle   Vehicle      @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  type      DocumentType
+  label     String
+  fileUrl   String
+  expiresAt DateTime?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+enum FuelType {
+  PETROL
+  DIESEL
+  ELECTRIC
+  HYBRID
+  PLUG_IN_HYBRID
+  HYDROGEN
+}
+
+enum ServiceType {
+  OIL_CHANGE
+  TIRE_ROTATION
+  TIRE_CHANGE
+  BRAKE_SERVICE
+  FILTER_CHANGE
+  INSPECTION
+  TRANSMISSION_SERVICE
+  COOLANT_FLUSH
+  BATTERY_REPLACEMENT
+  WINDSHIELD
+  OTHER
+}
+
+enum ExpenseCategory {
+  FUEL
+  SERVICE
+  INSURANCE
+  TAX
+  PARKING
+  TOLL
+  REPAIR
+  OTHER
+}
+
+enum ReminderType {
+  OIL_CHANGE
+  INSPECTION
+  INSURANCE_RENEWAL
+  TAX_DUE
+  TIRE_CHANGE
+  OTHER
+}
+
+enum ReminderStatus {
+  PENDING
+  DONE
+  SNOOZED
+}
+
+model CarMake {
+  id     Int        @id @default(autoincrement())
+  name   String     @unique
+  models CarModel[]
+
+  @@map("car_makes")
+}
+
+model CarModel {
+  id     Int     @id @default(autoincrement())
+  makeId Int     @map("make_id")
+  make   CarMake @relation(fields: [makeId], references: [id], onDelete: Cascade)
+  name   String
+
+  @@unique([makeId, name])
+  @@map("car_models")
+}
+
+enum DocumentType {
+  INSURANCE
+  REGISTRATION
+  INSPECTION_CERT
+  WARRANTY
+  RECEIPT
+  OTHER
+}

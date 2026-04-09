@@ -1,0 +1,142 @@
+{
+  "common": {
+    "loading": "Hleð...",
+    "error": "Villa kom upp",
+    "save": "Vista",
+    "cancel": "Hætta við",
+    "delete": "Eyða",
+    "edit": "Breyta",
+    "add": "Bæta við",
+    "back": "Til baka",
+    "logout": "Útskrá",
+    "noData": "Engar færslur",
+    "confirmDelete": "Ertu viss um að þú viljir eyða þessu?",
+    "deleteSuccess": "Eytt",
+    "saveSuccess": "Vistað",
+    "yes": "Já",
+    "no": "Nei"
+  },
+  "auth": {
+    "email": "Netfang",
+    "password": "Lykilorð",
+    "login": "Innskrá",
+    "loginWithGoogle": "Innskrá með Google",
+    "loginError": "Innskráning mistókst"
+  },
+  "dashboard": {
+    "title": "Yfirlit",
+    "vehicles": "Bílar",
+    "serviceRecords": "Þjónustufærslur",
+    "pendingReminders": "Áminningar",
+    "overdue": "Úreltir",
+    "recentActivity": "Nýleg virkni",
+    "upcomingReminders": "Komandi áminningar",
+    "noReminders": "Engar áminningar",
+    "noActivity": "Engin virkni enn"
+  },
+  "vehicles": {
+    "title": "Bílar mínir",
+    "add": "Bæta við bíl",
+    "edit": "Breyta bíl",
+    "empty": "Enginn bíll skráður enn",
+    "make": "Framleiðandi",
+    "model": "Módel",
+    "year": "Árgerð",
+    "licensePlate": "Skráningarnúmer",
+    "vin": "VIN númer",
+    "color": "Litur",
+    "fuelType": "Eldsneyti",
+    "mileage": "Kílómetrar",
+    "overview": "Yfirlit",
+    "timeline": "Saga",
+    "lastService": "Síðasta þjónusta",
+    "noServiceYet": "Engin þjónusta skráð"
+  },
+  "serviceRecords": {
+    "title": "Þjónustufærslur",
+    "add": "Skrá þjónustu",
+    "edit": "Breyta þjónustu",
+    "empty": "Engar þjónustufærslur",
+    "type": "Tegund",
+    "mileage": "Kílómetrar",
+    "date": "Dagsetning",
+    "cost": "Kostnaður",
+    "shop": "Verkstæði",
+    "description": "Athugasemd"
+  },
+  "expenses": {
+    "title": "Útgjöld",
+    "add": "Skrá útgjöld",
+    "edit": "Breyta útgjöldum",
+    "empty": "Engin útgjöld skráð",
+    "category": "Flokkur",
+    "amount": "Upphæð",
+    "date": "Dagsetning",
+    "description": "Lýsing"
+  },
+  "reminders": {
+    "title": "Áminningar",
+    "add": "Bæta við áminningu",
+    "edit": "Breyta áminningu",
+    "empty": "Engar áminningar",
+    "type": "Tegund",
+    "dueDate": "Gjalddagi",
+    "dueMileage": "Kílómetrar",
+    "note": "Athugasemd",
+    "status": "Staða",
+    "markDone": "Merkja sem lokið",
+    "overdue": "Úrelt",
+    "upcoming": "Framundan",
+    "doneStatus": "Lokið"
+  },
+  "reminderType": {
+    "OIL_CHANGE": "Olíuskipti",
+    "INSPECTION": "Skoðun",
+    "INSURANCE_RENEWAL": "Tryggingaendurnýjun",
+    "TAX_DUE": "Gjaldgjalddagi",
+    "TIRE_CHANGE": "Dekkjaskipti",
+    "OTHER": "Annað"
+  },
+  "reminderStatus": {
+    "PENDING": "Í bið",
+    "DONE": "Lokið",
+    "SNOOZED": "Frestað"
+  },
+  "expenseCategory": {
+    "FUEL": "Bensín",
+    "SERVICE": "Þjónusta",
+    "INSURANCE": "Trygging",
+    "TAX": "Gjald",
+    "PARKING": "Bílastæði",
+    "TOLL": "Veggjald",
+    "REPAIR": "Viðgerð",
+    "OTHER": "Annað"
+  },
+  "fuelType": {
+    "PETROL": "Bensín",
+    "DIESEL": "Dísel",
+    "ELECTRIC": "Rafmagn",
+    "HYBRID": "Tvinnbíll",
+    "PLUG_IN_HYBRID": "Tengitvinnbíll",
+    "HYDROGEN": "Vetni"
+  },
+  "mileage": {
+    "add": "Skrá kílómetra",
+    "mileage": "Kílómetrar",
+    "date": "Dagsetning",
+    "note": "Athugasemd"
+  },
+  "serviceType": {
+    "OIL_CHANGE": "Olíuskipti",
+    "TIRE_ROTATION": "Dekkjasnúningur",
+    "TIRE_CHANGE": "Dekkjaskipti",
+    "BRAKE_SERVICE": "Bremsur",
+    "FILTER_CHANGE": "Síaskipti",
+    "INSPECTION": "Skoðun",
+    "TRANSMISSION_SERVICE": "Gírkassi",
+    "COOLANT_FLUSH": "Kælivökvi",
+    "BATTERY_REPLACEMENT": "Rafhlöðuskipti",
+    "WINDSHIELD": "Framrúða",
+    "OTHER": "Annað"
+  }
+}

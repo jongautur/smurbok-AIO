@@ -1,0 +1,17 @@
+[Unit]
+Description=Smurbók Web (Next.js)
+After=network.target smurbok-api.service
+
+[Service]
+Type=simple
+User=jonma
+WorkingDirectory=/opt/smurbok/web
+ExecStart=/usr/bin/node node_modules/next/dist/bin/next start --port 3001
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=smurbok-web
+
+[Install]
+WantedBy=multi-user.target

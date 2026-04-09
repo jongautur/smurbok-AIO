@@ -1,0 +1,142 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "back": "Back",
+    "logout": "Log out",
+    "noData": "No entries",
+    "confirmDelete": "Are you sure you want to delete this?",
+    "deleteSuccess": "Deleted",
+    "saveSuccess": "Saved",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "auth": {
+    "email": "Email",
+    "password": "Password",
+    "login": "Log in",
+    "loginWithGoogle": "Sign in with Google",
+    "loginError": "Login failed"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "vehicles": "Vehicles",
+    "serviceRecords": "Service records",
+    "pendingReminders": "Reminders",
+    "overdue": "Overdue",
+    "recentActivity": "Recent activity",
+    "upcomingReminders": "Upcoming reminders",
+    "noReminders": "No reminders",
+    "noActivity": "No activity yet"
+  },
+  "vehicles": {
+    "title": "My Vehicles",
+    "add": "Add vehicle",
+    "edit": "Edit vehicle",
+    "empty": "No vehicles registered yet",
+    "make": "Make",
+    "model": "Model",
+    "year": "Year",
+    "licensePlate": "License plate",
+    "vin": "VIN number",
+    "color": "Color",
+    "fuelType": "Fuel type",
+    "mileage": "Mileage",
+    "overview": "Overview",
+    "timeline": "History",
+    "lastService": "Last service",
+    "noServiceYet": "No service recorded"
+  },
+  "serviceRecords": {
+    "title": "Service records",
+    "add": "Log service",
+    "edit": "Edit service record",
+    "empty": "No service records",
+    "type": "Type",
+    "mileage": "Mileage",
+    "date": "Date",
+    "cost": "Cost",
+    "shop": "Shop",
+    "description": "Notes"
+  },
+  "expenses": {
+    "title": "Expenses",
+    "add": "Log expense",
+    "edit": "Edit expense",
+    "empty": "No expenses recorded",
+    "category": "Category",
+    "amount": "Amount",
+    "date": "Date",
+    "description": "Description"
+  },
+  "reminders": {
+    "title": "Reminders",
+    "add": "Add reminder",
+    "edit": "Edit reminder",
+    "empty": "No reminders",
+    "type": "Type",
+    "dueDate": "Due date",
+    "dueMileage": "Due mileage",
+    "note": "Note",
+    "status": "Status",
+    "markDone": "Mark as done",
+    "overdue": "Overdue",
+    "upcoming": "Upcoming",
+    "doneStatus": "Done"
+  },
+  "reminderType": {
+    "OIL_CHANGE": "Oil change",
+    "INSPECTION": "Inspection",
+    "INSURANCE_RENEWAL": "Insurance renewal",
+    "TAX_DUE": "Tax due",
+    "TIRE_CHANGE": "Tire change",
+    "OTHER": "Other"
+  },
+  "reminderStatus": {
+    "PENDING": "Pending",
+    "DONE": "Done",
+    "SNOOZED": "Snoozed"
+  },
+  "expenseCategory": {
+    "FUEL": "Fuel",
+    "SERVICE": "Service",
+    "INSURANCE": "Insurance",
+    "TAX": "Tax",
+    "PARKING": "Parking",
+    "TOLL": "Toll",
+    "REPAIR": "Repair",
+    "OTHER": "Other"
+  },
+  "fuelType": {
+    "PETROL": "Petrol",
+    "DIESEL": "Diesel",
+    "ELECTRIC": "Electric",
+    "HYBRID": "Hybrid",
+    "PLUG_IN_HYBRID": "Plug-in hybrid",
+    "HYDROGEN": "Hydrogen"
+  },
+  "mileage": {
+    "add": "Log mileage",
+    "mileage": "Mileage",
+    "date": "Date",
+    "note": "Note"
+  },
+  "serviceType": {
+    "OIL_CHANGE": "Oil change",
+    "TIRE_ROTATION": "Tire rotation",
+    "TIRE_CHANGE": "Tire change",
+    "BRAKE_SERVICE": "Brake service",
+    "FILTER_CHANGE": "Filter change",
+    "INSPECTION": "Inspection",
+    "TRANSMISSION_SERVICE": "Transmission service",
+    "COOLANT_FLUSH": "Coolant flush",
+    "BATTERY_REPLACEMENT": "Battery replacement",
+    "WINDSHIELD": "Windshield",
+    "OTHER": "Other"
+  }
+}

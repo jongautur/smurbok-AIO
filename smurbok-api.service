@@ -1,0 +1,17 @@
+[Unit]
+Description=Smurbók API (NestJS)
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=jonma
+WorkingDirectory=/opt/smurbok/api
+ExecStart=/opt/smurbok/api/start.sh
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=smurbok-api
+
+[Install]
+WantedBy=multi-user.target
