@@ -1,6 +1,9 @@
 # Claude Code local config
 .claude/settings.local.json
 
+# Sensitive local files
+users
+
 # Environment files
 .env
 .env.local
@@ -15,3 +18,8 @@ dist/
 
 # OS
 .DS_Store
+
+# Runtime directories
+uploads/
+logs/
+backups/

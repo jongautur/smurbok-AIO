@@ -5,6 +5,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  MaxLength,
   Min,
 } from 'class-validator';
 import { ServiceType } from '@prisma/client';
@@ -30,6 +31,7 @@ export class UpdateServiceRecordDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(1000)
   description?: string;
 
   @ApiPropertyOptional()
@@ -41,5 +43,6 @@ export class UpdateServiceRecordDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   shop?: string;
 }

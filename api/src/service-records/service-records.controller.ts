@@ -9,16 +9,18 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiSecurity, ApiTags } from '@nestjs/swagger';
 import type { User } from '@prisma/client';
 import { ServiceRecordsService } from './service-records.service';
 import { CreateServiceRecordDto } from './dto/create-service-record.dto';
 import { UpdateServiceRecordDto } from './dto/update-service-record.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { PaginationDto } from '../common/dto/pagination.dto';
 
 @ApiTags('service-records')
-@ApiBearerAuth()
+@ApiSecurity('google-workspace')
 @Controller()
 export class ServiceRecordsController {
   constructor(private readonly serviceRecordsService: ServiceRecordsService) {}
@@ -28,8 +30,9 @@ export class ServiceRecordsController {
   findAll(
     @CurrentUser() user: User,
     @Param('vehicleId', ParseUUIDPipe) vehicleId: string,
+    @Query() pagination: PaginationDto,
   ) {
-    return this.serviceRecordsService.findAllForVehicle(vehicleId, user.id);
+    return this.serviceRecordsService.findAllForVehicle(vehicleId, user.id, pagination.page ?? 1, pagination.limit ?? 20);
   }
 
   @Post('vehicles/:vehicleId/service-records')
@@ -55,5 +58,10 @@ export class ServiceRecordsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
     return this.serviceRecordsService.remove(id, user.id);
+  }
+
+  @Post('service-records/:id/undelete')
+  undelete(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
+    return this.serviceRecordsService.undelete(id, user.id);
   }
 }

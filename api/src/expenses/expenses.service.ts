@@ -1,65 +1,90 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+import { Injectable, NotFoundException } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
+import { AuditLogService } from '../audit-log/audit-log.service'
+import { VehicleAuthzService } from '../authz/vehicle-authz.service'
 import { CreateExpenseDto } from './dto/create-expense.dto'
 import { UpdateExpenseDto } from './dto/update-expense.dto'
+import { paginate, type Paginated } from '../common/dto/pagination.dto'
 
 @Injectable()
 export class ExpensesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditLogService,
+    private readonly vehicleAuthz: VehicleAuthzService,
+  ) {}
 
-  async findAllForVehicle(vehicleId: string, userId: string) {
-    await this.requireVehicleOwned(vehicleId, userId)
-    const expenses = await this.prisma.expense.findMany({
-      where: { vehicleId },
-      orderBy: { date: 'desc' },
-    })
-    return expenses.map((e) => this.toResponse(e))
+  async findAllForVehicle(vehicleId: string, userId: string, page: number, limit: number): Promise<Paginated<ReturnType<typeof this.toResponse>>> {
+    await this.vehicleAuthz.requireView(vehicleId, userId)
+    const skip = (page - 1) * limit
+    const where = { vehicleId }
+    const [expenses, total] = await this.prisma.$transaction([
+      this.prisma.expense.findMany({ where, orderBy: { date: 'desc' }, skip, take: limit }),
+      this.prisma.expense.count({ where }),
+    ])
+    return paginate(expenses.map((e) => this.toResponse(e)), total, page, limit)
   }
 
   async create(vehicleId: string, userId: string, dto: CreateExpenseDto) {
-    await this.requireVehicleOwned(vehicleId, userId)
+    await this.vehicleAuthz.requireEdit(vehicleId, userId)
+    const date = new Date(dto.date)
     const expense = await this.prisma.expense.create({
       data: {
         vehicleId,
         category: dto.category,
         amount: dto.amount,
-        date: new Date(dto.date),
+        date,
         description: dto.description,
       },
     })
+    if (dto.mileage !== undefined) {
+      await this.syncMileageLog(vehicleId, dto.mileage, date)
+    }
+    this.audit.log(userId, 'CREATE', 'EXPENSE', expense.id)
     return this.toResponse(expense)
   }
 
   async update(id: string, userId: string, dto: UpdateExpenseDto) {
-    await this.requireExpenseOwned(id, userId)
+    const existing = await this.prisma.expense.findUnique({ where: { id } })
+    if (!existing) throw new NotFoundException('Expense not found')
+    await this.vehicleAuthz.requireEdit(existing.vehicleId, userId)
     const expense = await this.prisma.expense.update({
       where: { id },
       data: { ...dto, date: dto.date ? new Date(dto.date) : undefined },
     })
+    this.audit.log(userId, 'UPDATE', 'EXPENSE', id)
     return this.toResponse(expense)
   }
 
   async remove(id: string, userId: string) {
-    await this.requireExpenseOwned(id, userId)
-    await this.prisma.expense.delete({ where: { id } })
-  }
-
-  private async requireVehicleOwned(vehicleId: string, userId: string) {
-    const vehicle = await this.prisma.vehicle.findUnique({
-      where: { id: vehicleId },
-      select: { userId: true },
-    })
-    if (!vehicle) throw new NotFoundException('Vehicle not found')
-    if (vehicle.userId !== userId) throw new ForbiddenException()
-  }
-
-  private async requireExpenseOwned(id: string, userId: string) {
-    const expense = await this.prisma.expense.findUnique({
-      where: { id },
-      include: { vehicle: { select: { userId: true } } },
-    })
+    const expense = await this.prisma.expense.findUnique({ where: { id } })
     if (!expense) throw new NotFoundException('Expense not found')
-    if (expense.vehicle.userId !== userId) throw new ForbiddenException()
+    await this.vehicleAuthz.requireEdit(expense.vehicleId, userId)
+    await this.prisma.expense.delete({ where: { id } })
+    this.audit.log(userId, 'DELETE', 'EXPENSE', id)
+  }
+
+  async undelete(id: string, userId: string) {
+    const expense = await this.prisma.expense.findUnique({
+      where: { id, deletedAt: { not: null } },
+    })
+    if (!expense) throw new NotFoundException('Deleted expense not found')
+    await this.vehicleAuthz.requireEdit(expense.vehicleId, userId)
+    const restored = await this.prisma.expense.update({ where: { id }, data: { deletedAt: null } })
+    this.audit.log(userId, 'UPDATE', 'EXPENSE', id)
+    return this.toResponse(restored)
+  }
+
+  private async syncMileageLog(vehicleId: string, mileage: number, date: Date) {
+    const latest = await this.prisma.mileageLog.findFirst({
+      where: { vehicleId },
+      orderBy: { mileage: 'desc' },
+      select: { mileage: true },
+    })
+    if (latest && latest.mileage >= mileage) return
+    await this.prisma.mileageLog.create({
+      data: { vehicleId, mileage, date },
+    })
   }
 
   private toResponse(expense: any) {

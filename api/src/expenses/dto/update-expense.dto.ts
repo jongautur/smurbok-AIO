@@ -1,4 +1,4 @@
-import { IsDateString, IsEnum, IsNumber, IsOptional, IsString, Min } from 'class-validator'
+import { IsDateString, IsEnum, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator'
 import { ExpenseCategory } from '@prisma/client'
 import { ApiPropertyOptional } from '@nestjs/swagger'
 
@@ -22,5 +22,6 @@ export class UpdateExpenseDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   description?: string
 }

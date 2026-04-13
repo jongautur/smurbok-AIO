@@ -1,4 +1,4 @@
-import { IsDateString, IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator'
+import { IsDateString, IsEnum, IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator'
 import { ReminderStatus, ReminderType } from '@prisma/client'
 import { ApiPropertyOptional } from '@nestjs/swagger'
 
@@ -27,5 +27,6 @@ export class UpdateReminderDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   note?: string
 }

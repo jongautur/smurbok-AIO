@@ -1,23 +1,24 @@
 import {
   Body, Controller, Delete, Get, HttpCode, HttpStatus,
-  Param, ParseUUIDPipe, Patch, Post,
+  Param, ParseUUIDPipe, Patch, Post, Query,
 } from '@nestjs/common'
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
+import { ApiSecurity, ApiTags } from '@nestjs/swagger'
 import type { User } from '@prisma/client'
 import { ExpensesService } from './expenses.service'
 import { CreateExpenseDto } from './dto/create-expense.dto'
 import { UpdateExpenseDto } from './dto/update-expense.dto'
 import { CurrentUser } from '../auth/decorators/current-user.decorator'
+import { PaginationDto } from '../common/dto/pagination.dto'
 
 @ApiTags('expenses')
-@ApiBearerAuth()
+@ApiSecurity('google-workspace')
 @Controller()
 export class ExpensesController {
   constructor(private readonly expensesService: ExpensesService) {}
 
   @Get('vehicles/:vehicleId/expenses')
-  findAll(@CurrentUser() user: User, @Param('vehicleId', ParseUUIDPipe) vehicleId: string) {
-    return this.expensesService.findAllForVehicle(vehicleId, user.id)
+  findAll(@CurrentUser() user: User, @Param('vehicleId', ParseUUIDPipe) vehicleId: string, @Query() pagination: PaginationDto) {
+    return this.expensesService.findAllForVehicle(vehicleId, user.id, pagination.page ?? 1, pagination.limit ?? 20)
   }
 
   @Post('vehicles/:vehicleId/expenses')
@@ -42,5 +43,10 @@ export class ExpensesController {
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
     return this.expensesService.remove(id, user.id)
+  }
+
+  @Post('expenses/:id/undelete')
+  undelete(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
+    return this.expensesService.undelete(id, user.id)
   }
 }
