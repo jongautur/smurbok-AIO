@@ -3,23 +3,21 @@
 import { useEffect } from 'react'
 import { useRouter, useParams, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { signOut } from 'firebase/auth'
 import { useTranslations } from 'next-intl'
 import { useAuth } from '@/providers/auth-provider'
-import { auth } from '@/lib/firebase'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { firebaseUser, loading } = useAuth()
+  const { appUser, loading, logout } = useAuth()
   const router = useRouter()
   const params = useParams<{ locale: string }>()
   const pathname = usePathname()
   const t = useTranslations('common')
 
   useEffect(() => {
-    if (!loading && !firebaseUser) {
+    if (!loading && !appUser) {
       router.replace(`/${params.locale}/login`)
     }
-  }, [firebaseUser, loading, router, params.locale])
+  }, [appUser, loading, router, params.locale])
 
   if (loading) {
     return (
@@ -29,7 +27,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     )
   }
 
-  if (!firebaseUser) return null
+  if (!appUser) return null
 
   const locale = params.locale
 
@@ -60,7 +58,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           )
         })}
         <button
-          onClick={() => signOut(auth).then(() => router.replace(`/${locale}/login`))}
+          onClick={() => logout().then(() => router.replace(`/${locale}/login`))}
           className="flex flex-col items-center gap-0.5 px-6 py-1 rounded-lg text-gray-400 hover:text-gray-600 transition-colors"
         >
           <span className="text-xl">↩</span>

@@ -13,10 +13,13 @@ import { AddMileageLogForm } from '@/components/vehicles/add-mileage-log-form'
 import { AddReminderForm } from '@/components/reminders/add-reminder-form'
 import { ReminderList } from '@/components/reminders/reminder-list'
 import { TimelineList } from '@/components/timeline/timeline-list'
+import { UploadDocumentForm } from '@/components/vehicles/upload-document-form'
+import { DocumentList } from '@/components/vehicles/document-list'
+import { useDocuments } from '@/hooks/use-documents'
 import { OverviewSkeleton } from '@/components/ui/skeleton'
 
-type Tab = 'overview' | 'timeline' | 'reminders'
-type Modal = 'service' | 'expense' | 'reminder' | 'mileage' | 'edit_vehicle' | null
+type Tab = 'overview' | 'timeline' | 'reminders' | 'documents'
+type Modal = 'service' | 'expense' | 'reminder' | 'mileage' | 'edit_vehicle' | 'document' | null
 
 export default function VehiclePage() {
   const { id, locale } = useParams<{ id: string; locale: string }>()
@@ -29,6 +32,7 @@ export default function VehiclePage() {
   const overview = useVehicleOverview(id)
   const timeline = useVehicleTimeline(id, tab === 'timeline')
   const reminders = useReminders(id)
+  const documents = useDocuments(id)
 
   const overdueCount = reminders.data?.filter(
     (r) => r.status === 'PENDING' && r.dueDate && new Date(r.dueDate) < new Date(),
@@ -72,7 +76,7 @@ export default function VehiclePage() {
 
       {/* Tabs */}
       <div className="flex gap-4 border-b border-gray-200 mb-6">
-        {(['overview', 'timeline', 'reminders'] as Tab[]).map((key) => (
+        {(['overview', 'timeline', 'reminders', 'documents'] as Tab[]).map((key) => (
           <button
             key={key}
             onClick={() => setTab(key)}
@@ -84,6 +88,7 @@ export default function VehiclePage() {
           >
             {key === 'overview' && t('vehicles.overview')}
             {key === 'timeline' && t('vehicles.timeline')}
+            {key === 'documents' && t('documents.title')}
             {key === 'reminders' && (
               <>
                 {t('reminders.title')}
@@ -105,6 +110,11 @@ export default function VehiclePage() {
             <Stat label={t('vehicles.mileage')}>
               {v.latestMileage != null ? `${v.latestMileage.toLocaleString()} km` : '—'}
             </Stat>
+            <Stat label={t('vehicles.estimatedMileage')}>
+              {v.estimatedMileage != null ? `~${v.estimatedMileage.toLocaleString()} km` : '—'}
+            </Stat>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
             <Stat label={t('vehicles.fuelType')}>
               {t(`fuelType.${v.fuelType}`)}
             </Stat>
@@ -204,6 +214,21 @@ export default function VehiclePage() {
         </div>
       )}
 
+      {/* Documents */}
+      {tab === 'documents' && (
+        <div className="space-y-4">
+          <div className="flex justify-end">
+            <button onClick={() => setModal('document')}
+              className="bg-blue-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-blue-700">
+              + {t('documents.upload')}
+            </button>
+          </div>
+          {documents.data && (
+            <DocumentList vehicleId={id} documents={documents.data} />
+          )}
+        </div>
+      )}
+
       {/* Modals */}
       {modal === 'service' && (
         <AddServiceRecordForm vehicleId={id} onClose={() => setModal(null)}
@@ -223,6 +248,10 @@ export default function VehiclePage() {
       )}
       {modal === 'edit_vehicle' && (
         <EditVehicleForm vehicle={v} onClose={() => setModal(null)}
+          onSuccess={() => onFormSuccess(t('common.saveSuccess'))} />
+      )}
+      {modal === 'document' && (
+        <UploadDocumentForm vehicleId={id} onClose={() => setModal(null)}
           onSuccess={() => onFormSuccess(t('common.saveSuccess'))} />
       )}
     </Shell>

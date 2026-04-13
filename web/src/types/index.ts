@@ -47,6 +47,7 @@ export interface VehicleOverview {
   color: string | null
   fuelType: FuelType
   latestMileage: number | null
+  estimatedMileage: number | null
   latestService: {
     id: string
     type: ServiceType

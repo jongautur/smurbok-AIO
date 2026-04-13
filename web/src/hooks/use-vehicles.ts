@@ -8,10 +8,7 @@ export function useVehicles() {
   return useQuery({
     queryKey: ['vehicles'],
     queryFn: () =>
-      api.get<VehicleListItem[]>('/vehicles').then((r) => {
-        if (!Array.isArray(r.data)) throw new Error('Unexpected response from /vehicles')
-        return r.data
-      }),
+      api.get<{ items: VehicleListItem[] }>('/vehicles').then((r) => r.data.items),
   })
 }
 

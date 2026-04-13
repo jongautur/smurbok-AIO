@@ -47,6 +47,7 @@ export function useAddExpense(vehicleId: string) {
       amount: number
       date: string
       description?: string
+      mileage?: number
     }) =>
       api
         .post(`/vehicles/${vehicleId}/expenses`, data)

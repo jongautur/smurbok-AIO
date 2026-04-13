@@ -15,7 +15,7 @@ export function useReminders(vehicleId: string) {
   return useQuery({
     queryKey: ['vehicle', vehicleId, 'reminders'],
     queryFn: () =>
-      api.get<Reminder[]>(`/vehicles/${vehicleId}/reminders`).then((r) => r.data),
+      api.get<{ items: Reminder[] }>(`/vehicles/${vehicleId}/reminders`).then((r) => r.data.items),
   })
 }
 
