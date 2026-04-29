@@ -1,4 +1,5 @@
 import {
+  IsArray,
   IsDateString,
   IsEnum,
   IsInt,
@@ -12,10 +13,17 @@ import { ServiceType } from '@prisma/client';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateServiceRecordDto {
-  @ApiPropertyOptional({ enum: ServiceType })
+  @ApiPropertyOptional({ enum: ServiceType, isArray: true })
   @IsOptional()
-  @IsEnum(ServiceType)
-  type?: ServiceType;
+  @IsArray()
+  @IsEnum(ServiceType, { each: true })
+  types?: ServiceType[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  customType?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

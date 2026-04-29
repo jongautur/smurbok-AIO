@@ -15,12 +15,26 @@ function validateSecrets() {
     console.error(`[smurbok] FATAL: Missing required environment variables: ${missing.join(', ')}`)
     process.exit(1)
   }
+
+  if (process.env.NODE_ENV === 'production') {
+    const corsOrigin = process.env.CORS_ORIGIN ?? ''
+    if (!corsOrigin || corsOrigin.includes('localhost')) {
+      console.warn('[smurbok] WARNING: CORS_ORIGIN is not set or points to localhost in production')
+    }
+    if (!process.env.GMAIL_CLIENT_ID) {
+      console.warn('[smurbok] WARNING: Gmail OAuth2 not configured — email notifications disabled')
+    }
+  }
 }
 
 async function bootstrap() {
   validateSecrets();
 
   const app = await NestFactory.create(AppModule);
+
+  // Trust one hop of reverse proxy (nginx) so req.ip reflects the real client IP.
+  // Required for rate limiting and security logging to use real IPs, not 127.0.0.1.
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
   app.setGlobalPrefix('v1', {
     exclude: ['health', ''],
@@ -35,7 +49,9 @@ async function bootstrap() {
       contentSecurityPolicy: {
         directives: {
           ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-          'script-src': ["'self'", "'unsafe-inline'"],
+          // No unsafe-inline: Swagger UI uses a nonce or hashes in production.
+          // In dev (SWAGGER_ENABLED=true) this header is less critical.
+          'script-src': ["'self'"],
           'img-src': ["'self'", 'data:', 'https:'],
         },
       },
@@ -44,9 +60,24 @@ async function bootstrap() {
     }),
   );
 
+  // Support comma-separated origins: CORS_ORIGIN=https://smurbok.is,https://app.smurbok.is
+  const allowedOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:3001')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
   app.enableCors({
-    origin: process.env.CORS_ORIGIN ?? 'http://localhost:3001',
+    origin: (origin, callback) => {
+      // Allow server-to-server requests (no Origin header) and listed origins
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${origin} not allowed by CORS`));
+      }
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   app.useGlobalInterceptors(new LoggingInterceptor(), new EtagInterceptor());

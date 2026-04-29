@@ -32,6 +32,20 @@ export class MailService {
     }
   }
 
+  async sendRaw(to: string, subject: string, html: string): Promise<void> {
+    if (!this.transporter) {
+      this.logger.warn(`[DEV] Magic link email to ${to} — no mail transport configured`)
+      this.logger.warn(`[DEV] HTML: ${html}`)
+      return
+    }
+    try {
+      await this.transporter.sendMail({ from: `Smurbók <${this.from}>`, to, subject, html })
+      this.logger.log(`Email sent to ${to}: ${subject}`)
+    } catch (err) {
+      this.logger.error(`Failed to send email to ${to}`, err)
+    }
+  }
+
   async send(to: string, subject: string, template: ReactElement): Promise<void> {
     if (!this.transporter) return
 

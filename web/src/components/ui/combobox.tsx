@@ -108,7 +108,8 @@ export function Combobox({ value, onChange, onBlur, options, placeholder, disabl
           id={listId}
           ref={listRef}
           role="listbox"
-          className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-52 overflow-y-auto text-sm"
+          className="absolute z-50 mt-1 w-full rounded-md shadow-lg max-h-52 overflow-y-auto text-sm border"
+          style={{ backgroundColor: 'var(--surface-overlay)', borderColor: 'var(--border)' }}
         >
           {visible.map((option, i) => (
             <li
@@ -116,9 +117,11 @@ export function Combobox({ value, onChange, onBlur, options, placeholder, disabl
               role="option"
               aria-selected={i === activeIndex}
               onPointerDown={(e) => { e.preventDefault(); select(option) }}
-              className={`px-3 py-2 cursor-pointer ${
-                i === activeIndex ? 'bg-blue-50 text-blue-700' : 'text-gray-800 hover:bg-gray-50'
-              }`}
+              className="px-3 py-2 cursor-pointer"
+              style={{
+                backgroundColor: i === activeIndex ? 'color-mix(in srgb, var(--accent) 12%, transparent)' : undefined,
+                color: i === activeIndex ? 'var(--accent)' : 'var(--text-primary)',
+              }}
             >
               {option}
             </li>

@@ -52,7 +52,7 @@ export class DocumentsService {
     await this.vehicleAuthz.requireView(vehicleId, userId)
     const skip = (page - 1) * limit
     const where = { vehicleId }
-    const select = { id: true, vehicleId: true, type: true, label: true, fileUrl: true, expiresAt: true, createdAt: true }
+    const select = { id: true, vehicleId: true, type: true, label: true, fileUrl: true, fileSizeBytes: true, expiresAt: true, createdAt: true }
     const [docs, total] = await this.prisma.$transaction([
       this.prisma.document.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take: limit, select }),
       this.prisma.document.count({ where }),
@@ -91,8 +91,9 @@ export class DocumentsService {
       finalBuffer = await this.optimizePdf(file.buffer, dir)
       ext = '.pdf'
     } else {
-      // All images → WebP
-      finalBuffer = await sharp(file.buffer)
+      // All images → WebP. limitInputPixels prevents decompression bomb attacks
+      // where a tiny compressed file expands to gigabytes in memory.
+      finalBuffer = await sharp(file.buffer, { limitInputPixels: IMAGE_MAX_PX * IMAGE_MAX_PX })
         .resize(IMAGE_MAX_PX, IMAGE_MAX_PX, { fit: 'inside', withoutEnlargement: true })
         .webp({ quality: IMAGE_QUALITY })
         .toBuffer()
@@ -116,6 +117,7 @@ export class DocumentsService {
         type: dto.type,
         label: dto.label,
         fileUrl,
+        fileSizeBytes: finalBuffer.length,
         expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
       },
       select: {
@@ -124,6 +126,7 @@ export class DocumentsService {
         type: true,
         label: true,
         fileUrl: true,
+        fileSizeBytes: true,
         expiresAt: true,
         createdAt: true,
       },
@@ -191,12 +194,13 @@ export class DocumentsService {
         '-dBATCH',
         '-dNOPAUSE',
         '-dQUIET',
+        '-dSAFER',               // disables filesystem access and external program execution
         '-sDEVICE=pdfwrite',
         '-dCompatibilityLevel=1.4',
         '-dPDFSETTINGS=/ebook',  // 150 dpi — good for receipts/documents
         `-sOutputFile=${tmpOut}`,
         tmpIn,
-      ])
+      ], { timeout: 30_000 })
       const optimized = fs.readFileSync(tmpOut)
       // Only keep the optimized version if it's actually smaller
       return optimized.length < buffer.length ? optimized : buffer

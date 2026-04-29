@@ -4,11 +4,13 @@ import type { VehicleListItem } from '@/types'
 
 export type { VehicleListItem }
 
-export function useVehicles() {
+export function useVehicles(archived = false) {
   return useQuery({
-    queryKey: ['vehicles'],
+    queryKey: ['vehicles', archived ? 'archived' : 'active'],
     queryFn: () =>
-      api.get<{ items: VehicleListItem[] }>('/vehicles').then((r) => r.data.items),
+      api
+        .get<{ items: VehicleListItem[] }>('/vehicles', { params: archived ? { archived: 'true' } : undefined })
+        .then((r) => r.data.items),
   })
 }
 
@@ -25,7 +27,7 @@ export function useCreateVehicle() {
       fuelType?: string
     }) => api.post<VehicleListItem>('/vehicles', data).then((r) => r.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['vehicles'] })
+      queryClient.invalidateQueries({ queryKey: ['vehicles', 'active'] })
     },
   })
 }
@@ -50,11 +52,41 @@ export function useUpdateVehicle(id: string) {
   })
 }
 
+export function useArchiveVehicle() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.post(`/vehicles/${id}/archive`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] })
+    },
+  })
+}
+
+export function useRestoreVehicle() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.post(`/vehicles/${id}/restore`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] })
+    },
+  })
+}
+
 export function useDeleteVehicle() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) =>
       api.delete(`/vehicles/${id}`).then((r) => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] })
+    },
+  })
+}
+
+export function useUndeleteVehicle() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.post(`/vehicles/${id}/undelete`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicles'] })
     },

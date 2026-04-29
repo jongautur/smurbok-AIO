@@ -16,6 +16,7 @@ import type { User } from '@prisma/client'
 import { WorkOrdersService } from './work-orders.service'
 import { CreateWorkOrderDto } from './dto/create-work-order.dto'
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto'
+import { SignWorkOrderDto } from './dto/sign-work-order.dto'
 import { CurrentUser } from '../auth/decorators/current-user.decorator'
 import { PaginationDto } from '../common/dto/pagination.dto'
 
@@ -80,9 +81,16 @@ export class WorkOrdersController {
   }
 
   @Post(':id/sign')
-  @ApiOperation({ summary: 'Digitally sign a completed work order (workshop TECHNICIAN+)' })
+  @ApiOperation({
+    summary: 'Digitally sign a completed work order (workshop TECHNICIAN+)',
+    description: 'Optionally provide `mileage` to auto-create a service record on the vehicle.',
+  })
   @ApiResponse({ status: 400, description: 'Not yet completed, or already signed' })
-  sign(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
-    return this.workOrdersService.sign(user.id, id)
+  sign(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SignWorkOrderDto,
+  ) {
+    return this.workOrdersService.sign(user.id, id, dto)
   }
 }

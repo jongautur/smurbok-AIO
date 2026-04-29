@@ -1,4 +1,40 @@
 {
+  "nav": {
+    "dashboard": "Dashboard",
+    "vehicles": "Vehicles",
+    "profile": "Profile",
+    "userMenu": "User menu"
+  },
+  "theme": {
+    "light": "Light mode",
+    "dark": "Dark mode"
+  },
+  "user": {
+    "title": "My Profile",
+    "name": "Name",
+    "language": "Language",
+    "memberSince": "Member since",
+    "notifications": "Notifications",
+    "emailNotifications": "Email notifications",
+    "emailNotificationsHint": "We send reminders 14, 7, and 0 days before the due date",
+    "storage": "Storage",
+    "storageUsed": "used",
+    "storageLimit": "limit",
+    "dangerZone": "Danger zone",
+    "exportData": "Export my data",
+    "exportDataHint": "Downloads a ZIP file with all your data",
+    "deleteAccount": "Delete account",
+    "deleteAccountHint": "This permanently deletes your account and all data",
+    "comingSoon": "Coming soon",
+    "deleteConfirmPrompt": "Type \"delete\" to confirm",
+    "confirmDeletion": "Confirm deletion",
+    "deleting": "Deleting...",
+    "exporting": "Exporting...",
+    "topDocuments": "Files by size",
+    "noDocuments": "No documents uploaded yet",
+    "currency": "Currency",
+    "currencyHint": "Symbol shown on expenses (e.g. kr, $, €)"
+  },
   "common": {
     "loading": "Loading...",
     "error": "An error occurred",
@@ -14,12 +50,51 @@
     "deleteSuccess": "Deleted",
     "saveSuccess": "Saved",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "tryAgain": "Try again",
+    "undo": "Undo"
+  },
+  "feedback": {
+    "title": "Report",
+    "subject": "Subject",
+    "description": "Description",
+    "type": "Type",
+    "typeBug": "Bug",
+    "typeIdea": "Idea",
+    "typeOther": "Other",
+    "attachFile": "Attachment (optional)",
+    "submit": "Submit",
+    "success": "Thank you! Your report has been received.",
+    "errorEmpty": "Please fill in subject and description."
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "The page you're looking for doesn't exist.",
+    "home": "Go home"
+  },
+  "home": {
+    "signIn": "Sign in",
+    "heroTitle": "Your vehicles, all in one place",
+    "heroBody": "Smurbók is a personal vehicle logbook. Track service records, expenses, mileage, reminders, and documents for every vehicle you own — simply and privately.",
+    "getStarted": "Get started",
+    "tryDemo": "Try demo",
+    "feature1Title": "Service records",
+    "feature1Body": "Log every oil change, tire swap, and repair with date, mileage, and cost.",
+    "feature2Title": "Reminders",
+    "feature2Body": "Never miss an inspection or insurance renewal with due-date and mileage reminders.",
+    "feature3Title": "Documents",
+    "feature3Body": "Store insurance certificates, registrations, and receipts in one secure place."
+  },
+  "demo": {
+    "banner": "Demo mode — changes are not saved.",
+    "createAccount": "Create a free account",
+    "demoMode": "Demo"
   },
   "auth": {
     "email": "Email",
     "password": "Password",
     "login": "Log in",
+    "or": "or",
     "loginWithGoogle": "Sign in with Google",
     "loginError": "Login failed",
     "signupError": "Sign up failed. Please try again.",
@@ -33,7 +108,21 @@
     "namePlaceholder": "Your name",
     "confirmPassword": "Confirm password",
     "terms": "Terms of Service",
-    "privacy": "Privacy Policy"
+    "privacy": "Privacy Policy",
+    "magicLink": "Email link",
+    "magicLinkHint": "Enter your email and we'll send you a sign-in link. No password needed.",
+    "sendLink": "Send link",
+    "checkEmail": "Check your email",
+    "checkEmailBody": "We sent a sign-in link to {email}. Click it to continue — this tab will update automatically.",
+    "waitingForLink": "Waiting for you to click the link…",
+    "sendLinkAgain": "Send a new link",
+    "magicLinkExpired": "The link expired or was already used. Please try again.",
+    "magicLinkSuccessTitle": "You're signed in!",
+    "magicLinkSuccessBody": "You can now go back to Smurbók.",
+    "magicLinkErrorTitle": "Link expired",
+    "magicLinkErrorBody": "This link has expired or has already been used. Please request a new one.",
+    "backToLogin": "Back to sign in",
+    "goToSmurbok": "Go to Smurbók"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -44,13 +133,14 @@
     "recentActivity": "Recent activity",
     "upcomingReminders": "Upcoming reminders",
     "noReminders": "No reminders",
-    "noActivity": "No activity yet"
+    "noActivity": "No activity yet",
+    "yourVehicles": "Your vehicles"
   },
   "vehicles": {
     "title": "My Vehicles",
     "add": "Add vehicle",
     "edit": "Edit vehicle",
-    "empty": "No vehicles registered yet",
+    "empty": "No vehicles added yet",
     "make": "Make",
     "model": "Model",
     "year": "Year",
@@ -63,7 +153,17 @@
     "overview": "Overview",
     "timeline": "History",
     "lastService": "Last service",
-    "noServiceYet": "No service recorded"
+    "noServiceYet": "No service recorded",
+    "archive": "Archive",
+    "archived": "Archived",
+    "restore": "Restore",
+    "showArchived": "Show archived",
+    "archivedEmpty": "No archived vehicles",
+    "archiveSuccess": "Vehicle archived",
+    "restoreSuccess": "Vehicle restored",
+    "deleteSuccess": "Vehicle deleted",
+    "confirmArchive": "Archive this vehicle? It will be hidden from your active list.",
+    "confirmDelete": "Delete this vehicle? This cannot be undone."
   },
   "serviceRecords": {
     "title": "Service records",
@@ -75,7 +175,11 @@
     "date": "Date",
     "cost": "Cost",
     "shop": "Shop",
-    "description": "Notes"
+    "inspectionStation": "Inspection station",
+    "inspectionStationPlaceholder": "Select inspection station...",
+    "description": "Notes",
+    "selectTypes": "Select services",
+    "otherPlaceholder": "Service name..."
   },
   "expenses": {
     "title": "Expenses",
@@ -85,7 +189,15 @@
     "category": "Category",
     "amount": "Amount",
     "date": "Date",
-    "description": "Description"
+    "description": "Description",
+    "litres": "Litres",
+    "recurring": "Recurring",
+    "recurringHint": "E.g. monthly subscription or standing charge",
+    "recurringMonths": "Repeat every (months)",
+    "recurringMonthsPlaceholder": "e.g. 1 for monthly",
+    "recurringMonthly": "Monthly",
+    "recurringEvery": "Every {months} months",
+    "customCategoryPlaceholder": "Category name..."
   },
   "reminders": {
     "title": "Reminders",
@@ -100,7 +212,23 @@
     "markDone": "Mark as done",
     "overdue": "Overdue",
     "upcoming": "Upcoming",
-    "doneStatus": "Done"
+    "doneStatus": "Done",
+    "snoozed": "Snoozed",
+    "snooze": "Snooze",
+    "snoozeTitle": "Snooze reminder",
+    "snoozeDate": "New due date",
+    "recurrenceMonths": "Repeat every (months)",
+    "recurrenceMonthsPlaceholder": "e.g. 12 for annual"
+  },
+  "mileage": {
+    "title": "Mileage",
+    "add": "Log mileage",
+    "mileage": "Mileage",
+    "current": "Current mileage (km)",
+    "optional": "Optional",
+    "date": "Date",
+    "note": "Note",
+    "empty": "No mileage entries"
   },
   "reminderType": {
     "OIL_CHANGE": "Oil change",
@@ -121,8 +249,9 @@
     "INSURANCE": "Insurance",
     "TAX": "Tax",
     "PARKING": "Parking",
-    "TOLL": "Toll",
+    "TOLL": "Mileage charge",
     "REPAIR": "Repair",
+    "THRIF": "Cleaning",
     "OTHER": "Other"
   },
   "fuelType": {
@@ -132,14 +261,6 @@
     "HYBRID": "Hybrid",
     "PLUG_IN_HYBRID": "Plug-in hybrid",
     "HYDROGEN": "Hydrogen"
-  },
-  "mileage": {
-    "add": "Log mileage",
-    "mileage": "Mileage",
-    "current": "Current mileage (km)",
-    "optional": "Optional",
-    "date": "Date",
-    "note": "Note"
   },
   "documents": {
     "title": "Documents",
@@ -198,17 +319,75 @@
     "section5Body": "You may request deletion of your account and associated data at any time by contacting us. You can also export or delete individual records within the app.",
     "contact": "Questions? Contact us at"
   },
+  "transfer": {
+    "title": "Vehicle transfer",
+    "subtitle": "You've been invited to take ownership of a vehicle",
+    "expires": "Offer expires",
+    "accept": "Accept transfer",
+    "decline": "Decline",
+    "accepting": "Accepting...",
+    "declining": "Declining...",
+    "accepted": "Transfer accepted!",
+    "acceptedBody": "The vehicle has been added to your account.",
+    "declined": "Transfer declined",
+    "declinedBody": "You have declined the vehicle transfer.",
+    "invalid": "Invalid link",
+    "invalidBody": "This transfer link is invalid or has already been used.",
+    "alreadyHandled": "Transfer already handled",
+    "alreadyHandledBody": "This transfer has already been accepted or declined.",
+    "loginRequired": "Log in to accept",
+    "loginRequiredBody": "You need to be logged in to accept this transfer.",
+    "goToVehicle": "Go to vehicle",
+    "goHome": "Go to Smurbók"
+  },
+  "invite": {
+    "title": "Organization invitation",
+    "subtitle": "You've been invited to join an organization",
+    "role": "Role",
+    "accept": "Accept invitation",
+    "accepting": "Joining...",
+    "accepted": "Welcome aboard!",
+    "acceptedBody": "You've successfully joined the organization.",
+    "invalid": "Invalid invitation",
+    "invalidBody": "This invitation link is invalid, expired, or has already been used.",
+    "loginRequired": "Log in to join",
+    "loginRequiredBody": "You need to be logged in to accept this invitation.",
+    "goHome": "Go to Smurbók"
+  },
   "serviceType": {
     "OIL_CHANGE": "Oil change",
+    "ENGINE_OIL_CHANGE": "Engine oil change",
+    "TRANSMISSION_OIL_CHANGE": "Transmission oil change",
     "TIRE_ROTATION": "Tire rotation",
     "TIRE_CHANGE": "Tire change",
     "BRAKE_SERVICE": "Brake service",
+    "BRAKE_DISCS": "Brake discs",
+    "BRAKE_PADS": "Brake pads",
+    "BRAKE_BANDS": "Brake bands",
+    "HANDBRAKE": "Handbrake",
     "FILTER_CHANGE": "Filter change",
+    "OIL_FILTER": "Oil filter",
+    "FUEL_FILTER": "Fuel filter",
+    "TRANSMISSION_FILTER": "Transmission filter",
+    "AIR_FILTER": "Air filter",
+    "CABIN_FILTER": "Cabin filter",
     "INSPECTION": "Inspection",
+    "MAIN_INSPECTION": "Main inspection",
+    "RE_INSPECTION": "Re-inspection",
     "TRANSMISSION_SERVICE": "Transmission service",
     "COOLANT_FLUSH": "Coolant flush",
     "BATTERY_REPLACEMENT": "Battery replacement",
     "WINDSHIELD": "Windshield",
+    "WINDSHIELD_REPAIR": "Windshield repair",
+    "WINDSHIELD_REPLACEMENT": "Windshield replacement",
     "OTHER": "Other"
+  },
+  "serviceCategory": {
+    "OIL": "Oil",
+    "TIRES": "Tires",
+    "FILTER_GROUP": "Filters",
+    "BRAKE_GROUP": "Brakes",
+    "INSPECTION_GROUP": "Inspection",
+    "WINDSHIELD_GROUP": "Windshield"
   }
 }

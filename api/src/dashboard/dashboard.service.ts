@@ -9,8 +9,8 @@ export class DashboardService {
     const vehicles = await this.prisma.vehicle.findMany({
       where: { userId },
       include: {
-        mileageLogs: { orderBy: { date: 'desc' }, take: 1 },
-        _count: { select: { serviceRecords: true } },
+        mileageLogs: { where: { deletedAt: null }, orderBy: { date: 'desc' }, take: 1 },
+        _count: { select: { serviceRecords: { where: { deletedAt: null } } } },
       },
     })
 
@@ -21,13 +21,14 @@ export class DashboardService {
         where: {
           vehicleId: { in: vehicleIds },
           status: 'PENDING',
+          deletedAt: null,
         },
         include: { vehicle: { select: { make: true, model: true, year: true } } },
         orderBy: { dueDate: 'asc' },
         take: 5,
       }),
       this.prisma.serviceRecord.findMany({
-        where: { vehicleId: { in: vehicleIds } },
+        where: { vehicleId: { in: vehicleIds }, deletedAt: null },
         include: { vehicle: { select: { make: true, model: true, year: true } } },
         orderBy: { date: 'desc' },
         take: 5,
@@ -67,7 +68,8 @@ export class DashboardService {
         id: r.id,
         vehicleId: r.vehicleId,
         vehicleName: `${r.vehicle.year} ${r.vehicle.make} ${r.vehicle.model}`,
-        type: r.type,
+        types: r.types,
+        customType: r.customType,
         date: r.date,
         mileage: r.mileage,
         shop: r.shop,

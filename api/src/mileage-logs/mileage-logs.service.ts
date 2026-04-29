@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service'
 import { AuditLogService } from '../audit-log/audit-log.service'
 import { VehicleAuthzService } from '../authz/vehicle-authz.service'
+import { NotificationsService } from '../notifications/notifications.service'
 import { CreateMileageLogDto } from './dto/create-mileage-log.dto'
 import { paginate, type Paginated } from '../common/dto/pagination.dto'
 
@@ -11,6 +12,7 @@ export class MileageLogsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditLogService,
     private readonly vehicleAuthz: VehicleAuthzService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async findAllForVehicle(vehicleId: string, userId: string, page: number, limit: number): Promise<Paginated<object>> {
@@ -41,6 +43,22 @@ export class MileageLogsService {
     const log = await this.prisma.mileageLog.create({
       data: { vehicleId, mileage: dto.mileage, date: new Date(dto.date), note: dto.note },
     })
+
+    // If we already notified that a mileage-based reminder is due but the actual
+    // logged mileage is still under the threshold, the estimate was premature —
+    // reset the flag so the cron re-evaluates and re-fires when appropriate.
+    await this.prisma.reminder.updateMany({
+      where: {
+        vehicleId,
+        status: 'PENDING',
+        dueMileage: { gt: dto.mileage },
+        notifiedDueDate: true,
+        deletedAt: null,
+      },
+      data: { notifiedDueDate: false },
+    })
+
+    this.notifications.notifyMileageRemindersDue(vehicleId, dto.mileage).catch(() => {})
     this.audit.log(userId, 'CREATE', 'MILEAGE_LOG', log.id)
     return log
   }

@@ -1,0 +1,63 @@
+{
+  "expo": {
+    "name": "Smurbók",
+    "slug": "smurbok",
+    "scheme": "smurbok",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "bundleIdentifier": "is.smurbok.app",
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "is.smurbok.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "54785a48-627a-4992-9d7f-fcdcb1de8609"
+      }
+    },
+    "owner": "smurbok",
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#111827",
+          "sounds": []
+        }
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-document-picker",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Allow Smurbók to take photos of vehicle documents.",
+          "photosPermission": "Allow Smurbók to access your photos for document uploads."
+        }
+      ]
+    ]
+  }
+}

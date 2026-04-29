@@ -3,7 +3,8 @@ import { ServiceType } from '@prisma/client'
 
 class LatestServiceDto {
   @ApiProperty() id: string
-  @ApiProperty({ enum: ServiceType }) type: ServiceType
+  @ApiProperty({ enum: ServiceType, isArray: true }) types: ServiceType[]
+  @ApiPropertyOptional() customType: string | null
   @ApiProperty() date: Date
   @ApiProperty() mileage: number
   @ApiPropertyOptional() shop: string | null

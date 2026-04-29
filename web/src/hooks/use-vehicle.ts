@@ -1,13 +1,29 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { VehicleOverview, Timeline, ServiceRecord } from '@/types'
+import type { VehicleOverview, Timeline, ServiceRecord, Expense, MileageLog } from '@/types'
 
-export type { ServiceRecord }
+export type { ServiceRecord, Expense, MileageLog }
 
 export function useVehicleOverview(id: string) {
   return useQuery({
     queryKey: ['vehicle', id, 'overview'],
     queryFn: () => api.get<VehicleOverview>(`/vehicles/${id}/overview`).then((r) => r.data),
+  })
+}
+
+export function useServiceRecords(vehicleId: string) {
+  return useQuery({
+    queryKey: ['vehicle', vehicleId, 'service-records'],
+    queryFn: () =>
+      api.get<{ items: ServiceRecord[] }>(`/vehicles/${vehicleId}/service-records`).then((r) => r.data.items),
+  })
+}
+
+export function useExpenses(vehicleId: string) {
+  return useQuery({
+    queryKey: ['vehicle', vehicleId, 'expenses'],
+    queryFn: () =>
+      api.get<{ items: Expense[] }>(`/vehicles/${vehicleId}/expenses`).then((r) => r.data.items),
   })
 }
 
@@ -23,7 +39,8 @@ export function useAddServiceRecord(vehicleId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (data: {
-      type: string
+      types: string[]
+      customType?: string
       mileage: number
       date: string
       cost?: number
@@ -48,6 +65,9 @@ export function useAddExpense(vehicleId: string) {
       date: string
       description?: string
       mileage?: number
+      litres?: number
+      customCategory?: string
+      recurringMonths?: number
     }) =>
       api
         .post(`/vehicles/${vehicleId}/expenses`, data)
@@ -63,7 +83,8 @@ export function useUpdateServiceRecord(vehicleId: string) {
   return useMutation({
     mutationFn: ({ id, ...data }: {
       id: string
-      type?: string
+      types?: string[]
+      customType?: string
       mileage?: number
       date?: string
       cost?: number
@@ -88,6 +109,17 @@ export function useDeleteServiceRecord(vehicleId: string) {
   })
 }
 
+export function useUndeleteServiceRecord(vehicleId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.post(`/service-records/${id}/undelete`).then((r) => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vehicle', vehicleId] })
+    },
+  })
+}
+
 export function useUpdateExpense(vehicleId: string) {
   const queryClient = useQueryClient()
   return useMutation({
@@ -97,6 +129,9 @@ export function useUpdateExpense(vehicleId: string) {
       amount?: number
       date?: string
       description?: string
+      litres?: number
+      customCategory?: string
+      recurringMonths?: number
     }) =>
       api.patch(`/expenses/${id}`, data).then((r) => r.data),
     onSuccess: () => {
@@ -110,6 +145,17 @@ export function useDeleteExpense(vehicleId: string) {
   return useMutation({
     mutationFn: (id: string) =>
       api.delete(`/expenses/${id}`).then((r) => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vehicle', vehicleId] })
+    },
+  })
+}
+
+export function useUndeleteExpense(vehicleId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.post(`/expenses/${id}/undelete`).then((r) => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicle', vehicleId] })
     },

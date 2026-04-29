@@ -35,6 +35,10 @@ export class ExpensesService {
         amount: dto.amount,
         date,
         description: dto.description,
+        litres: dto.litres,
+        customCategory: dto.customCategory,
+        recurringMonths: dto.recurringMonths,
+        costCenterId: dto.costCenterId,
       },
     })
     if (dto.mileage !== undefined) {
@@ -95,6 +99,9 @@ export class ExpensesService {
       amount: expense.amount,
       date: expense.date,
       description: expense.description,
+      litres: expense.litres,
+      customCategory: expense.customCategory,
+      recurringMonths: expense.recurringMonths,
       createdAt: expense.createdAt,
     }
   }

@@ -4,13 +4,14 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
-import { OrgRole, OrgType } from '@prisma/client'
+import { OrgRole, OrgType, ServiceType } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import { AuditLogService } from '../audit-log/audit-log.service'
 import { paginate, type Paginated } from '../common/dto/pagination.dto'
 import { NotificationsService } from '../notifications/notifications.service'
 import { CreateWorkOrderDto } from './dto/create-work-order.dto'
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto'
+import { SignWorkOrderDto } from './dto/sign-work-order.dto'
 
 // Role hierarchy: OWNER > MANAGER > TECHNICIAN = DRIVER > VIEWER
 const ROLE_WEIGHT: Record<OrgRole, number> = {
@@ -145,20 +146,44 @@ export class WorkOrdersService {
     return updated
   }
 
-  async sign(userId: string, id: string) {
-    const wo = await this.prisma.workOrder.findUnique({ where: { id } })
+  async sign(userId: string, id: string, dto: SignWorkOrderDto) {
+    const wo = await this.prisma.workOrder.findUnique({
+      where: { id },
+      include: { workshopOrg: { select: { name: true } } },
+    })
     if (!wo) throw new NotFoundException('Work order not found')
     if (!wo.completedAt) throw new BadRequestException('Work order must be completed before signing')
     if (wo.signedAt) throw new BadRequestException('Work order is already signed')
 
     await this.requireWorkshopRole(wo.workshopOrgId, userId, 'TECHNICIAN')
 
-    const updated = await this.prisma.workOrder.update({
-      where: { id },
-      data: { signedAt: new Date() },
-      include: WORK_ORDER_INCLUDE,
-    })
+    const ops: any[] = [
+      this.prisma.workOrder.update({
+        where: { id },
+        data: { signedAt: new Date() },
+        include: WORK_ORDER_INCLUDE,
+      }),
+    ]
+
+    if (dto.mileage !== undefined) {
+      ops.push(
+        this.prisma.serviceRecord.create({
+          data: {
+            vehicleId: wo.vehicleId,
+            types: [dto.serviceType ?? ServiceType.OTHER],
+            mileage: dto.mileage,
+            date: wo.completedAt!,
+            description: wo.description,
+            cost: dto.cost !== undefined ? dto.cost : undefined,
+            shop: wo.workshopOrg.name,
+          },
+        }),
+      )
+    }
+
+    const [updated] = await this.prisma.$transaction(ops)
     this.notifications.sendWorkOrderSigned(id).catch(() => {})
+    this.audit.log(userId, 'UPDATE', 'WORK_ORDER', id)
     return updated
   }
 

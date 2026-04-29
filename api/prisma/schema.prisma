@@ -13,15 +13,19 @@ model User {
   email           String               @unique
   displayName     String?              @map("display_name")
   language        Language             @default(is)
+  currency        String               @default("kr")
   role            Role                 @default(USER)
   accountType          AccountType          @default(PERSONAL) @map("account_type")
   emailNotifications   Boolean              @default(true) @map("email_notifications")
+  expoPushToken        String?              @map("expo_push_token")
+  suspendedAt          DateTime?            @map("suspended_at")
   createdAt            DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
   vehicles        Vehicle[]
   orgMemberships  OrganizationMember[]
   techWorkOrders  WorkOrder[]          @relation("TechnicianWorkOrders")
   driverTripLogs  TripLog[]            @relation("DriverTripLogs")
+  auditLogs       AuditLog[]
 
   @@map("users")
 }
@@ -49,6 +53,8 @@ model Vehicle {
   vin            String?         @unique
   color          String?
   fuelType       FuelType        @default(PETROL)
+  acquiredAt     DateTime?       @map("acquired_at")
+  disposedAt     DateTime?       @map("disposed_at")
   archivedAt     DateTime?       @map("archived_at")
   deletedAt      DateTime?       @map("deleted_at")
   createdAt      DateTime        @default(now())
@@ -60,20 +66,48 @@ model Vehicle {
   documents      Document[]
   workOrders     WorkOrder[]
   tripLogs       TripLog[]
+  transfers      VehicleTransfer[]
+}
+
+model VehicleTransfer {
+  id             String                @id @default(uuid())
+  vehicleId      String                @map("vehicle_id")
+  vehicle        Vehicle               @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  fromUserId     String?               @map("from_user_id")
+  fromOrgId      String?               @map("from_org_id")
+  toUserId       String?               @map("to_user_id")
+  toOrgId        String?               @map("to_org_id")
+  toEmail        String?               @map("to_email")
+  status         VehicleTransferStatus @default(PENDING)
+  tokenHash      String                @unique @map("token_hash")
+  expiresAt      DateTime              @map("expires_at")
+  acceptedAt     DateTime?             @map("accepted_at")
+  declinedAt     DateTime?             @map("declined_at")
+  createdAt      DateTime              @default(now()) @map("created_at")
+
+  @@map("vehicle_transfers")
+}
+
+enum VehicleTransferStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
 }
 
 model ServiceRecord {
-  id          String      @id @default(uuid())
+  id          String        @id @default(uuid())
   vehicleId   String
-  vehicle     Vehicle     @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  type        ServiceType
+  vehicle     Vehicle       @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  types       ServiceType[] @default([])
+  customType  String?       @map("custom_type")
   mileage     Int
   date        DateTime
   description String?
-  cost        Decimal?    @db.Decimal(10, 2)
+  cost        Decimal?      @db.Decimal(10, 2)
   shop        String?
-  deletedAt   DateTime?   @map("deleted_at")
-  createdAt   DateTime    @default(now())
+  deletedAt   DateTime?     @map("deleted_at")
+  createdAt   DateTime      @default(now())
   updatedAt   DateTime    @updatedAt
 }
 
@@ -89,16 +123,21 @@ model MileageLog {
 }
 
 model Expense {
-  id          String          @id @default(uuid())
-  vehicleId   String
-  vehicle     Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  category    ExpenseCategory
-  amount      Decimal         @db.Decimal(10, 2)
-  date        DateTime
-  description String?
-  deletedAt   DateTime?       @map("deleted_at")
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  id           String          @id @default(uuid())
+  vehicleId    String
+  vehicle      Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  category     ExpenseCategory
+  amount       Decimal         @db.Decimal(10, 2)
+  date         DateTime
+  description  String?
+  litres           Decimal?        @db.Decimal(8, 2)
+  customCategory   String?         @map("custom_category")
+  recurringMonths  Int?            @map("recurring_months")
+  costCenterId String?         @map("cost_center_id")
+  costCenter   CostCenter?     @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+  deletedAt    DateTime?       @map("deleted_at")
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
 }
 
 model Reminder {
@@ -110,6 +149,7 @@ model Reminder {
   dueMileage       Int?
   status           ReminderStatus @default(PENDING)
   note             String?
+  recurrenceMonths Int?           @map("recurrence_months")
   notified14Days   Boolean        @default(false) @map("notified_14_days")
   notified7Days    Boolean        @default(false) @map("notified_7_days")
   notifiedDueDate  Boolean        @default(false) @map("notified_due_date")
@@ -119,16 +159,17 @@ model Reminder {
 }
 
 model Document {
-  id        String       @id @default(uuid())
-  vehicleId String
-  vehicle   Vehicle      @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  type      DocumentType
-  label     String
-  fileUrl   String
-  expiresAt DateTime?
-  deletedAt DateTime?    @map("deleted_at")
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  id            String       @id @default(uuid())
+  vehicleId     String
+  vehicle       Vehicle      @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  type          DocumentType
+  label         String
+  fileUrl       String
+  fileSizeBytes Int?         @map("file_size_bytes")
+  expiresAt     DateTime?
+  deletedAt     DateTime?    @map("deleted_at")
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 }
 
 enum FuelType {
@@ -142,15 +183,30 @@ enum FuelType {
 
 enum ServiceType {
   OIL_CHANGE
+  ENGINE_OIL_CHANGE
+  TRANSMISSION_OIL_CHANGE
   TIRE_ROTATION
   TIRE_CHANGE
   BRAKE_SERVICE
+  BRAKE_DISCS
+  BRAKE_PADS
+  BRAKE_BANDS
+  HANDBRAKE
   FILTER_CHANGE
+  OIL_FILTER
+  FUEL_FILTER
+  TRANSMISSION_FILTER
+  AIR_FILTER
+  CABIN_FILTER
   INSPECTION
+  MAIN_INSPECTION
+  RE_INSPECTION
   TRANSMISSION_SERVICE
   COOLANT_FLUSH
   BATTERY_REPLACEMENT
   WINDSHIELD
+  WINDSHIELD_REPAIR
+  WINDSHIELD_REPLACEMENT
   OTHER
 }
 
@@ -162,6 +218,7 @@ enum ExpenseCategory {
   PARKING
   TOLL
   REPAIR
+  THRIF
   OTHER
 }
 
@@ -207,6 +264,21 @@ enum DocumentType {
   OTHER
 }
 
+// ── Magic Link Auth ───────────────────────────────────────────────────────────
+
+model MagicLinkToken {
+  id        String    @id @default(uuid())
+  email     String
+  tokenHash String    @unique @map("token_hash")
+  sessionId String    @unique @map("session_id")
+  jwt       String?
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@map("magic_link_tokens")
+}
+
 // ── Audit Log ────────────────────────────────────────────────────────────────
 
 enum AuditAction {
@@ -225,11 +297,13 @@ enum AuditResource {
   WORK_ORDER
   ORGANIZATION
   TRIP_LOG
+  USER
 }
 
 model AuditLog {
   id         String        @id @default(uuid())
   userId     String        @map("user_id")
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   action     AuditAction
   resource   AuditResource
   resourceId String        @map("resource_id")
@@ -267,14 +341,31 @@ model Organization {
   type               OrgType
   country            String               @default("IS")
   registrationNumber String?              @map("registration_number")
+  suspendedAt        DateTime?            @map("suspended_at")
   createdAt          DateTime             @default(now()) @map("created_at")
   updatedAt          DateTime             @updatedAt @map("updated_at")
   members            OrganizationMember[]
   vehicles           Vehicle[]
   workOrders         WorkOrder[]          @relation("WorkshopOrg")
   costCenters        CostCenter[]
+  invites            OrgInvite[]
 
   @@map("organizations")
+}
+
+model OrgInvite {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email          String
+  role           OrgRole
+  tokenHash      String       @unique @map("token_hash")
+  expiresAt      DateTime     @map("expires_at")
+  acceptedAt     DateTime?    @map("accepted_at")
+  createdBy      String       @map("created_by")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@map("org_invites")
 }
 
 model OrganizationMember {
@@ -332,6 +423,7 @@ model CostCenter {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name           String
   code           String?
+  expenses       Expense[]
   createdAt      DateTime     @default(now()) @map("created_at")
 
   @@unique([organizationId, name])

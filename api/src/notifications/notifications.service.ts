@@ -12,7 +12,6 @@ const DEFAULT_KM_PER_YEAR = 15_000
 const DEFAULT_KM_PER_DAY = DEFAULT_KM_PER_YEAR / 365
 const MIN_DAYS_FOR_RATE = 30 // need at least 30 days of history to trust the rate
 
-type NotificationStage = '14_days' | '7_days' | 'due_date'
 
 interface StageConfig {
   daysOffset: number
@@ -42,13 +41,14 @@ export class NotificationsService {
     const reminders = await this.prisma.reminder.findMany({
       where: {
         status: 'PENDING',
-        vehicle: { userId: { not: null } },
+        deletedAt: null,
+        vehicle: { userId: { not: null }, deletedAt: null },
       },
       include: {
         vehicle: {
           include: {
             user: true,
-            mileageLogs: { orderBy: { date: 'asc' } },
+            mileageLogs: { where: { deletedAt: null }, orderBy: { date: 'asc' } },
           },
         },
       },
@@ -94,6 +94,15 @@ export class NotificationsService {
           }),
         )
 
+        if (user.expoPushToken) {
+          await this.sendPush(
+            user.expoPushToken,
+            subject,
+            `${reminder.vehicle.make} ${reminder.vehicle.model} · ${reminder.vehicle.licensePlate}`,
+            { reminderId: reminder.id, vehicleId: reminder.vehicleId },
+          )
+        }
+
         await this.prisma.reminder.update({
           where: { id: reminder.id },
           data: { [stage.flag]: true },
@@ -133,8 +142,9 @@ export class NotificationsService {
 
   /**
    * Estimates the calendar date when a vehicle will reach targetMileage.
-   * Uses actual km/day from mileage log history if >= 30 days of data exists,
-   * otherwise falls back to 15,000 km/year.
+   * Projects from the estimated mileage TODAY (latest log + elapsed days × km/day rate),
+   * so the cron fires based on where we estimate the car is now — not from the log date.
+   * Falls back to 15,000 km/year if less than 30 days of history exists.
    */
   private estimateDateForMileage(
     targetMileage: number,
@@ -142,8 +152,6 @@ export class NotificationsService {
   ): Date | null {
     const sorted = [...mileageLogs].sort((a, b) => a.date.getTime() - b.date.getTime())
     const latest = sorted[sorted.length - 1]
-
-    if (latest.mileage >= targetMileage) return null // already past it
 
     let kmPerDay = DEFAULT_KM_PER_DAY
 
@@ -156,8 +164,14 @@ export class NotificationsService {
       }
     }
 
-    const daysUntilTarget = (targetMileage - latest.mileage) / kmPerDay
-    const estimated = new Date(latest.date)
+    const daysSinceLatest = (Date.now() - latest.date.getTime()) / (1000 * 60 * 60 * 24)
+    const estimatedCurrentMileage = latest.mileage + daysSinceLatest * kmPerDay
+
+    // Already at or past the target based on estimated current position
+    if (estimatedCurrentMileage >= targetMileage) return new Date()
+
+    const daysUntilTarget = (targetMileage - estimatedCurrentMileage) / kmPerDay
+    const estimated = new Date()
     estimated.setDate(estimated.getDate() + Math.round(daysUntilTarget))
     return estimated
   }
@@ -169,6 +183,80 @@ export class NotificationsService {
       date.getMonth() === now.getMonth() &&
       date.getDate() === now.getDate()
     )
+  }
+
+  // ── Push notifications (Expo) ─────────────────────────────────────────────
+
+  async sendPush(expoPushToken: string, title: string, body: string, data?: Record<string, unknown>) {
+    try {
+      const res = await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ to: expoPushToken, title, body, data }),
+      })
+      if (!res.ok) {
+        this.logger.warn(`Expo push failed (${res.status}) for token ${expoPushToken.slice(0, 30)}...`)
+      }
+    } catch (err: any) {
+      this.logger.warn(`Expo push error: ${err?.message}`)
+    }
+  }
+
+  // ── Mileage-based reminder triggering ────────────────────────────────────
+
+  async notifyMileageRemindersDue(vehicleId: string, reachedMileage: number): Promise<void> {
+    const reminders = await this.prisma.reminder.findMany({
+      where: {
+        vehicleId,
+        status: 'PENDING',
+        dueMileage: { lte: reachedMileage },
+        notifiedDueDate: false,
+        deletedAt: null,
+        vehicle: { deletedAt: null },
+      },
+      include: { vehicle: { include: { user: true } } },
+    })
+
+    for (const reminder of reminders) {
+      const user = reminder.vehicle.user
+      if (!user) continue
+
+      const lang = (user.language ?? 'en') as Lang
+      const typeLabel = reminderTypeLabels[reminder.type]?.[lang] ?? reminder.type.replace(/_/g, ' ')
+      const subject = copy.reminder.subjectToday(lang, typeLabel, reminder.vehicle.licensePlate)
+
+      if (user.email && user.emailNotifications) {
+        await this.mail.send(
+          user.email,
+          subject,
+          createElement(ReminderDueEmail, {
+            lang,
+            userName: user.displayName ?? user.email,
+            vehicleName: `${reminder.vehicle.make} ${reminder.vehicle.model} ${reminder.vehicle.year}`,
+            licensePlate: reminder.vehicle.licensePlate,
+            reminderType: typeLabel,
+            dueDate: reminder.dueDate?.toISOString().split('T')[0] ?? '',
+            dueMileage: reminder.dueMileage ?? undefined,
+            stage: stageLabels[0][lang],
+            note: reminder.note ?? undefined,
+          }),
+        )
+      }
+
+      if (user.expoPushToken) {
+        await this.sendPush(
+          user.expoPushToken,
+          subject,
+          `${reminder.vehicle.make} ${reminder.vehicle.model} · ${reminder.vehicle.licensePlate}`,
+          { reminderId: reminder.id, vehicleId: reminder.vehicleId },
+        )
+      }
+
+      await this.prisma.reminder.update({
+        where: { id: reminder.id },
+        data: { notifiedDueDate: true },
+      })
+    }
   }
 
   // ── Work order events ─────────────────────────────────────────────────────
@@ -188,9 +276,10 @@ export class NotificationsService {
     if (!owner?.email || !owner.emailNotifications) return
 
     const lang = (owner.language ?? 'en') as Lang
+    const subject = copy.workOrderCompleted.subject(lang, wo.vehicle.make, wo.vehicle.model, wo.vehicle.licensePlate)
     await this.mail.send(
       owner.email,
-      copy.workOrderCompleted.subject(lang, wo.vehicle.make, wo.vehicle.model, wo.vehicle.licensePlate),
+      subject,
       createElement(WorkOrderCompletedEmail, {
         lang,
         userName: owner.displayName ?? owner.email,
@@ -202,6 +291,9 @@ export class NotificationsService {
         completedAt: wo.completedAt!.toISOString().split('T')[0],
       }),
     )
+    if (owner.expoPushToken) {
+      await this.sendPush(owner.expoPushToken, subject, wo.workshopOrg.name, { workOrderId: wo.id })
+    }
   }
 
   async sendWorkOrderSigned(workOrderId: string) {
@@ -219,9 +311,10 @@ export class NotificationsService {
     if (!owner?.email || !owner.emailNotifications) return
 
     const lang = (owner.language ?? 'en') as Lang
+    const subject = copy.workOrderSigned.subject(lang, wo.vehicle.make, wo.vehicle.model, wo.vehicle.licensePlate)
     await this.mail.send(
       owner.email,
-      copy.workOrderSigned.subject(lang, wo.vehicle.make, wo.vehicle.model, wo.vehicle.licensePlate),
+      subject,
       createElement(WorkOrderSignedEmail, {
         lang,
         userName: owner.displayName ?? owner.email,
@@ -233,5 +326,8 @@ export class NotificationsService {
         signedAt: wo.signedAt!.toISOString().split('T')[0],
       }),
     )
+    if (owner.expoPushToken) {
+      await this.sendPush(owner.expoPushToken, subject, wo.workshopOrg.name, { workOrderId: wo.id })
+    }
   }
 }

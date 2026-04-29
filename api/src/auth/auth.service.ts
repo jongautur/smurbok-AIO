@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -6,10 +7,18 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
 import * as admin from 'firebase-admin';
 import { FIREBASE_APP } from '../firebase/firebase.module';
 import type { User } from '@prisma/client';
 import { Language, Role } from '@prisma/client';
+import { randomBytes, createHash } from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as archiver from 'archiver';
+import type { Response } from 'express';
+
+const UPLOADS_ROOT = '/opt/smurbok/uploads';
 
 const ADMIN_DOMAIN = 'smurbok.is';
 
@@ -18,6 +27,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly mail: MailService,
     @Inject(FIREBASE_APP) private readonly firebaseApp: admin.app.App,
   ) {}
 
@@ -141,14 +151,214 @@ export class AuthService {
     return this.toProfile(updated);
   }
 
+  async updateCurrency(user: User, currency: string): Promise<Partial<User>> {
+    const trimmed = (currency ?? '').trim().slice(0, 10);
+    const updated = await this.prisma.user.update({
+      where: { id: user.id },
+      data: { currency: trimmed || 'kr' },
+    });
+    return this.toProfile(updated);
+  }
+
+  // ── Magic link ───────────────────────────────────────────────────────────
+
+  async requestMagicLink(email: string, sessionId: string): Promise<void> {
+    // Clean up expired tokens for this email
+    await this.prisma.magicLinkToken.deleteMany({
+      where: { email, expiresAt: { lt: new Date() } },
+    });
+
+    const rawToken = randomBytes(32).toString('hex');
+    const tokenHash = createHash('sha256').update(rawToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    await this.prisma.magicLinkToken.create({
+      data: { email, tokenHash, sessionId, expiresAt },
+    });
+
+    const baseUrl = process.env.PUBLIC_URL ?? 'http://localhost:3000';
+    const link = `${baseUrl}/v1/auth/magic-link/verify?token=${rawToken}`;
+
+    await this.mail.sendRaw(
+      email,
+      'Sign in to Smurbók',
+      `<p>Tap the button below to sign in. This link expires in 15 minutes.</p>
+       <p><a href="${link}" style="background:#000;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;font-weight:600;">Sign in to Smurbók</a></p>
+       <p style="color:#999;font-size:13px;">If you didn't request this, ignore this email.</p>`,
+    );
+  }
+
+  async verifyMagicLink(rawToken: string): Promise<{ jwt: string }> {
+    const tokenHash = createHash('sha256').update(rawToken).digest('hex');
+
+    const record = await this.prisma.magicLinkToken.findUnique({
+      where: { tokenHash },
+    });
+
+    if (!record || record.usedAt || record.expiresAt < new Date()) {
+      throw new BadRequestException('Invalid or expired magic link');
+    }
+
+    // Upsert user
+    const user = await this.prisma.user.upsert({
+      where: { email: record.email },
+      update: {},
+      create: {
+        firebaseUid: `magic_${randomBytes(8).toString('hex')}`,
+        email: record.email,
+        role: this.roleFromEmail(record.email),
+      },
+    });
+
+    const jwt = this.jwtService.sign({ sub: user.id });
+
+    await this.prisma.magicLinkToken.update({
+      where: { tokenHash },
+      data: { usedAt: new Date(), jwt },
+    });
+
+    return { jwt };
+  }
+
+  /**
+   * Called from POST /auth/magic-link/exchange (web only).
+   * Finds a verified magic-link session, sets the JWT as a cookie,
+   * and deletes the session record so it cannot be replayed.
+   */
+  async exchangeMagicLinkSession(sessionId: string): Promise<{ token: string; user: Partial<User> }> {
+    const record = await this.prisma.magicLinkToken.findUnique({ where: { sessionId } });
+
+    if (!record || !record.jwt) {
+      throw new UnauthorizedException('Magic link not yet verified or session not found');
+    }
+    if (record.expiresAt < new Date()) {
+      throw new UnauthorizedException('Magic link session has expired');
+    }
+
+    let payload: { sub: string };
+    try {
+      payload = this.jwtService.verify<{ sub: string }>(record.jwt);
+    } catch {
+      throw new UnauthorizedException('Invalid session token');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+    if (!user) throw new UnauthorizedException('User not found');
+
+    // Delete the token so it cannot be exchanged again
+    await this.prisma.magicLinkToken.delete({ where: { sessionId } }).catch(() => {});
+
+    return { token: record.jwt, user: this.toProfile(user) };
+  }
+
+  async pollMagicLink(sessionId: string): Promise<{ status: 'pending' | 'verified' }> {
+    const record = await this.prisma.magicLinkToken.findUnique({
+      where: { sessionId },
+    });
+
+    if (!record || record.expiresAt < new Date()) {
+      throw new BadRequestException('Session expired or not found');
+    }
+
+    if (record.jwt) {
+      return { status: 'verified' };
+    }
+
+    return { status: 'pending' };
+  }
+
+  // ── Push tokens ──────────────────────────────────────────────────────────
+
+  async registerPushToken(user: User, token: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { expoPushToken: token },
+    });
+  }
+
+  async unregisterPushToken(user: User): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { expoPushToken: null },
+    });
+  }
+
+  async exportUserData(userId: string, res: Response): Promise<void> {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+
+    const vehicles = await this.prisma.vehicle.findMany({
+      where: { userId, deletedAt: null },
+      include: {
+        serviceRecords: { where: { deletedAt: null }, orderBy: { date: 'desc' } },
+        mileageLogs:    { where: { deletedAt: null }, orderBy: { date: 'desc' } },
+        expenses:       { where: { deletedAt: null }, orderBy: { date: 'desc' } },
+        reminders:      { where: { deletedAt: null }, orderBy: { createdAt: 'desc' } },
+        documents:      { where: { deletedAt: null }, orderBy: { createdAt: 'desc' } },
+      },
+    });
+
+    const exportData = {
+      exportedAt: new Date().toISOString(),
+      user: this.toProfile(user),
+      vehicles: vehicles.map((v) => ({
+        id: v.id, make: v.make, model: v.model, year: v.year,
+        licensePlate: v.licensePlate, vin: v.vin, color: v.color,
+        fuelType: v.fuelType, archivedAt: v.archivedAt, createdAt: v.createdAt,
+        serviceRecords: v.serviceRecords,
+        mileageLogs: v.mileageLogs,
+        expenses: v.expenses,
+        reminders: v.reminders,
+        documents: v.documents.map((d) => ({
+          id: d.id, label: d.label, type: d.type,
+          expiresAt: d.expiresAt, createdAt: d.createdAt,
+          file: `documents/${path.basename(d.fileUrl)}`,
+        })),
+      })),
+    };
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="smurbok-export.zip"');
+
+    const archive = archiver.default('zip', { zlib: { level: 6 } });
+    archive.pipe(res);
+
+    archive.append(JSON.stringify(exportData, null, 2), { name: 'data.json' });
+
+    for (const vehicle of vehicles) {
+      for (const doc of vehicle.documents) {
+        if (!doc.deletedAt) {
+          const fullPath = path.join('/opt/smurbok', doc.fileUrl);
+          if (fs.existsSync(fullPath)) {
+            const ext = path.extname(doc.fileUrl);
+            archive.file(fullPath, { name: `documents/${doc.id}${ext}` });
+          }
+        }
+      }
+    }
+
+    await archive.finalize();
+  }
+
+  async deleteAccount(userId: string): Promise<void> {
+    // Delete all uploaded files for this user
+    const userDir = path.join(UPLOADS_ROOT, userId);
+    if (fs.existsSync(userDir)) {
+      fs.rmSync(userDir, { recursive: true, force: true });
+    }
+    // Hard-delete the user — Prisma cascade handles all related records
+    await this.prisma.user.delete({ where: { id: userId } });
+  }
+
   private toProfile(user: User) {
     return {
       id: user.id,
       email: user.email,
       displayName: user.displayName,
       language: user.language,
+      currency: user.currency,
       role: user.role,
       emailNotifications: user.emailNotifications,
+      createdAt: user.createdAt,
     };
   }
 

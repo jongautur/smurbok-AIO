@@ -22,6 +22,13 @@ All authenticated endpoints require a valid session cookie (`access_token`) obta
 | GET | `/v1/auth/me` | Required | Current user profile |
 | PATCH | `/v1/auth/me/language` | Required | Set preferred language (`is` / `en`) |
 | PATCH | `/v1/auth/me/notifications` | Required | Toggle email notifications on/off |
+| POST | `/v1/auth/me/push-token` | Required | Register an Expo push token for this device |
+| DELETE | `/v1/auth/me/push-token` | Required | Unregister push token (call on logout) |
+| DELETE | `/v1/auth/me` | Required | Delete account and all owned data (confirmation required) — **not yet implemented** |
+| GET | `/v1/auth/me/export` | Required | Download ZIP of all personal data (GDPR) — **not yet implemented** |
+| POST | `/v1/auth/magic-link` | Public | Request a magic link email. Body: `{ email, sessionId }` where `sessionId` is a client-generated UUID for polling |
+| GET | `/v1/auth/magic-link/verify` | Public | `?token=` — verify the magic link token; redirects to `magic-link/success` or `magic-link/error` |
+| GET | `/v1/auth/magic-link/status` | Public | `?sessionId=` — poll for JWT after clicking the link; returns `{ token }` when ready |
 
 ---
 
@@ -230,6 +237,18 @@ All list endpoints accept `?page=1&limit=20` query parameters and return:
 | `GET /v1/documents/:id/link` | 30 req/min |
 
 When a limit is exceeded the response is `429 Too Many Requests` with a `Retry-After: N` header (seconds).
+
+## Mobile Auth (Expo)
+
+The API supports both web (cookie) and mobile (Bearer token) auth simultaneously.
+
+**Login** — `POST /v1/auth/login` returns `{ ...user, token }`. Web uses the cookie set automatically; mobile stores the token in `expo-secure-store` and sends it as `Authorization: Bearer <token>` on every request.
+
+**Token expiry** — 30 days. On expiry, re-call `POST /v1/auth/login` with a fresh Firebase token (the Firebase SDK handles silent refresh automatically).
+
+**Logout** — call `DELETE /v1/auth/me/push-token` first to deregister the device, then discard the token from secure store. No server logout call needed.
+
+**Push notifications** — register after login with `POST /v1/auth/me/push-token` `{ "token": "ExponentPushToken[...]" }`. Notifications are sent for reminder due dates (3-stage: 14/7/0 days) and work order completed/signed events.
 
 ## Soft Deletes
 

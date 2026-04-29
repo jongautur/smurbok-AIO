@@ -35,6 +35,7 @@ export class RemindersService {
         dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
         dueMileage: dto.dueMileage,
         note: dto.note,
+        recurrenceMonths: dto.recurrenceMonths,
       },
     })
     this.audit.log(userId, 'CREATE', 'REMINDER', reminder.id)
@@ -52,6 +53,22 @@ export class RemindersService {
         dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
       },
     })
+
+    // Auto-create next occurrence when marking DONE on a recurring reminder
+    if (dto.status === 'DONE' && existing.status !== 'DONE' && reminder.recurrenceMonths && reminder.dueDate) {
+      const nextDate = new Date(reminder.dueDate)
+      nextDate.setMonth(nextDate.getMonth() + reminder.recurrenceMonths)
+      await this.prisma.reminder.create({
+        data: {
+          vehicleId: existing.vehicleId,
+          type: reminder.type,
+          dueDate: nextDate,
+          recurrenceMonths: reminder.recurrenceMonths,
+          note: reminder.note ?? undefined,
+        },
+      })
+    }
+
     this.audit.log(userId, 'UPDATE', 'REMINDER', id)
     return reminder
   }

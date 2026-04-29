@@ -22,7 +22,11 @@ import { AddMemberDto, UpdateMemberRoleDto } from './dto/add-member.dto'
 import { CreateOrgVehicleDto } from './dto/create-org-vehicle.dto'
 import { BulkReminderDto } from './dto/bulk-reminder.dto'
 import { CostQueryDto } from './dto/cost-query.dto'
+import { CreateInviteDto } from './dto/create-invite.dto'
+import { AcceptInviteDto } from './dto/accept-invite.dto'
 import { CurrentUser } from '../auth/decorators/current-user.decorator'
+import { Public } from '../auth/decorators/public.decorator'
+import { Admin } from '../auth/decorators/admin.decorator'
 
 @ApiTags('organizations')
 @ApiSecurity('google-workspace')
@@ -204,5 +208,65 @@ export class OrganizationsController {
     @Res() res: Response,
   ) {
     return this.orgsService.exportCostsPdf(id, user.id, query, res)
+  }
+
+  // ── Invites ───────────────────────────────────────────────────────────────
+
+  @Get('invites/check')
+  @Public()
+  @ApiOperation({ summary: 'Preview an invite (public) — returns org name and role' })
+  checkInvite(@Query('token') token: string) {
+    return this.orgsService.checkInvite(token)
+  }
+
+  @Post('invites/accept')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Accept an invite — adds the caller to the org' })
+  acceptInvite(@CurrentUser() user: User, @Body() dto: AcceptInviteDto) {
+    return this.orgsService.acceptInvite(dto.token, user.id)
+  }
+
+  @Post(':id/invites')
+  @ApiOperation({ summary: 'Invite a user to join the organization by email' })
+  createInvite(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateInviteDto,
+  ) {
+    return this.orgsService.createInvite(id, user.id, dto)
+  }
+
+  @Get(':id/invites')
+  @ApiOperation({ summary: 'List pending invites for the organization' })
+  listInvites(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
+    return this.orgsService.listInvites(id, user.id)
+  }
+
+  @Delete(':id/invites/:inviteId')
+  @ApiOperation({ summary: 'Revoke a pending invite' })
+  revokeInvite(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('inviteId', ParseUUIDPipe) inviteId: string,
+  ) {
+    return this.orgsService.revokeInvite(id, inviteId, user.id)
+  }
+
+  // ── Admin: suspend / unsuspend ────────────────────────────────────────────
+
+  @Post(':id/suspend')
+  @Admin()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: '[Admin] Suspend an organization' })
+  suspendOrg(@CurrentUser() actor: User, @Param('id', ParseUUIDPipe) id: string) {
+    return this.orgsService.suspend(id, actor.id)
+  }
+
+  @Post(':id/unsuspend')
+  @Admin()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: '[Admin] Unsuspend an organization' })
+  unsuspendOrg(@CurrentUser() actor: User, @Param('id', ParseUUIDPipe) id: string) {
+    return this.orgsService.unsuspend(id, actor.id)
   }
 }

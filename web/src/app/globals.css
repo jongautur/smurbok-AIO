@@ -1,6 +1,54 @@
 @import "tailwindcss";
 
+/* Class-based dark mode — applied to <html class="dark"> */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── Semantic color tokens ───────────────────────────────────────────────── */
+:root {
+  --surface:         #f9fafb; /* gray-50  */
+  --surface-raised:  #ffffff; /* white    */
+  --surface-overlay: #ffffff; /* white    */
+  --border:          #e5e7eb; /* gray-200 */
+  --text-primary:    #111827; /* gray-900 */
+  --text-muted:      #6b7280; /* gray-500 */
+  --accent:          #2563eb; /* blue-600 */
+  --accent-hover:    #1d4ed8; /* blue-700 */
+  --accent-fg:       #ffffff;
+  --danger:          #dc2626; /* red-600  */
+}
+
+.dark {
+  --surface:         #030712; /* gray-950 */
+  --surface-raised:  #111827; /* gray-900 */
+  --surface-overlay: #1f2937; /* gray-800 */
+  --border:          #1f2937; /* gray-800 */
+  --text-primary:    #f9fafb; /* gray-50  */
+  --text-muted:      #9ca3af; /* gray-400 */
+  --accent:          #3b82f6; /* blue-500 */
+  --accent-hover:    #60a5fa; /* blue-400 */
+  --accent-fg:       #ffffff;
+  --danger:          #f87171; /* red-400  */
+}
+
+/* ── Base ────────────────────────────────────────────────────────────────── */
 body {
-  font-family: Arial, Helvetica, sans-serif;
-  @apply bg-gray-50 text-gray-900 antialiased;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  background-color: var(--surface);
+  color: var(--text-primary);
+  @apply antialiased;
+}
+
+/* ── Focus rings ─────────────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Inputs already show their own focus ring via Tailwind's focus:ring-2 */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
 }

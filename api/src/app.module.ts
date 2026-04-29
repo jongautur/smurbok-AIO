@@ -26,6 +26,7 @@ import { OrganizationsModule } from './organizations/organizations.module';
 import { TripLogsModule } from './trip-logs/trip-logs.module';
 import { WorkOrdersModule } from './work-orders/work-orders.module';
 import { PurgeModule } from './purge/purge.module';
+import { FeedbackModule } from './feedback/feedback.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { PurgeModule } from './purge/purge.module';
     WorkOrdersModule,
     NotificationsModule,
     PurgeModule,
+    FeedbackModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: AppThrottlerGuard },

@@ -9,6 +9,7 @@ export interface Reminder {
   dueMileage: number | null
   status: 'PENDING' | 'DONE' | 'SNOOZED'
   note: string | null
+  recurrenceMonths: number | null
 }
 
 export function useReminders(vehicleId: string) {
@@ -27,6 +28,7 @@ export function useAddReminder(vehicleId: string) {
       dueDate?: string
       dueMileage?: number
       note?: string
+      recurrenceMonths?: number
     }) => api.post<Reminder>(`/vehicles/${vehicleId}/reminders`, data).then((r) => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicle', vehicleId] })
@@ -37,8 +39,19 @@ export function useAddReminder(vehicleId: string) {
 export function useUpdateReminder(vehicleId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, ...data }: { id: string; status?: string; dueDate?: string; note?: string }) =>
+    mutationFn: ({ id, ...data }: { id: string; type?: string; status?: string; dueDate?: string; dueMileage?: number | null; note?: string; recurrenceMonths?: number | null }) =>
       api.patch<Reminder>(`/reminders/${id}`, data).then((r) => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vehicle', vehicleId] })
+    },
+  })
+}
+
+export function useSnoozeReminder(vehicleId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, date }: { id: string; date: string }) =>
+      api.post<Reminder>(`/reminders/${id}/snooze`, { date }).then((r) => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicle', vehicleId] })
     },
@@ -49,6 +62,16 @@ export function useDeleteReminder(vehicleId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => api.delete(`/reminders/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vehicle', vehicleId] })
+    },
+  })
+}
+
+export function useUndeleteReminder(vehicleId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.post(`/reminders/${id}/undelete`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicle', vehicleId] })
     },

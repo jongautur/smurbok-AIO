@@ -1,4 +1,5 @@
 import {
+  IsDateString,
   IsEnum,
   IsInt,
   IsOptional,
@@ -58,4 +59,9 @@ export class CreateVehicleDto {
   @IsOptional()
   @IsEnum(FuelType)
   fuelType?: FuelType;
+
+  @ApiPropertyOptional({ description: 'Date the vehicle was acquired (ISO 8601)' })
+  @IsOptional()
+  @IsDateString()
+  acquiredAt?: string;
 }

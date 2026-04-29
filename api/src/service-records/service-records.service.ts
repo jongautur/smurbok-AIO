@@ -36,7 +36,8 @@ export class ServiceRecordsService {
     const record = await this.prisma.serviceRecord.create({
       data: {
         vehicleId,
-        type: dto.type,
+        types: dto.types,
+        customType: dto.customType,
         mileage: dto.mileage,
         date,
         description: dto.description,
@@ -58,8 +59,13 @@ export class ServiceRecordsService {
     const record = await this.prisma.serviceRecord.update({
       where: { id },
       data: {
-        ...dto,
+        types: dto.types,
+        customType: dto.customType,
+        mileage: dto.mileage,
         date: dto.date ? new Date(dto.date) : undefined,
+        description: dto.description,
+        cost: dto.cost,
+        shop: dto.shop,
       },
     });
 
@@ -108,7 +114,8 @@ export class ServiceRecordsService {
     return {
       id: record.id,
       vehicleId: record.vehicleId,
-      type: record.type,
+      types: record.types,
+      customType: record.customType,
       mileage: record.mileage,
       date: record.date,
       description: record.description,

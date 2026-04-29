@@ -7,14 +7,17 @@ import {
 import { OrgRole, Prisma } from '@prisma/client'
 import { Response } from 'express'
 import PDFDocument from 'pdfkit'
+import { createHash, randomBytes } from 'crypto'
 import { PrismaService } from '../prisma/prisma.service'
 import { AuditLogService } from '../audit-log/audit-log.service'
+import { MailService } from '../mail/mail.service'
 import { CreateOrgDto } from './dto/create-org.dto'
 import { UpdateOrgDto } from './dto/update-org.dto'
 import { AddMemberDto, UpdateMemberRoleDto } from './dto/add-member.dto'
 import { CreateOrgVehicleDto } from './dto/create-org-vehicle.dto'
 import { BulkReminderDto } from './dto/bulk-reminder.dto'
 import { CostQueryDto } from './dto/cost-query.dto'
+import { CreateInviteDto } from './dto/create-invite.dto'
 
 // Role hierarchy: OWNER > MANAGER > TECHNICIAN = DRIVER > VIEWER
 const ROLE_WEIGHT: Record<OrgRole, number> = {
@@ -30,6 +33,7 @@ export class OrganizationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditLogService,
+    private readonly mail: MailService,
   ) {}
 
   // ── Org CRUD ──────────────────────────────────────────────────────────────
@@ -55,7 +59,7 @@ export class OrganizationsService {
     return this.prisma.organization.findMany({
       where: { members: { some: { userId } } },
       include: {
-        _count: { select: { members: true, vehicles: true } },
+        _count: { select: { members: true, vehicles: { where: { deletedAt: null } } } },
         members: {
           where: { userId },
           select: { role: true },
@@ -70,7 +74,7 @@ export class OrganizationsService {
     const org = await this.prisma.organization.findUnique({
       where: { id: orgId },
       include: {
-        _count: { select: { members: true, vehicles: true } },
+        _count: { select: { members: true, vehicles: { where: { deletedAt: null } } } },
       },
     })
     return { ...org, myRole: membership.role }
@@ -161,10 +165,15 @@ export class OrganizationsService {
   async listVehicles(orgId: string, userId: string) {
     await this.requireMembership(orgId, userId)
     return this.prisma.vehicle.findMany({
-      where: { organizationId: orgId },
+      where: { organizationId: orgId, deletedAt: null },
       include: {
-        mileageLogs: { orderBy: { date: 'desc' }, take: 1 },
-        _count: { select: { serviceRecords: true, reminders: true } },
+        mileageLogs: { where: { deletedAt: null }, orderBy: { date: 'desc' }, take: 1 },
+        _count: {
+          select: {
+            serviceRecords: { where: { deletedAt: null } },
+            reminders: { where: { deletedAt: null } },
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     })
@@ -205,30 +214,37 @@ export class OrganizationsService {
         select: { id: true, name: true, type: true },
       }),
       this.prisma.vehicle.findMany({
-        where: { organizationId: orgId },
+        where: { organizationId: orgId, deletedAt: null },
         include: {
-          mileageLogs: { orderBy: { date: 'desc' }, take: 1 },
-          reminders: { where: { status: 'PENDING' }, orderBy: { dueDate: 'asc' }, take: 3 },
+          mileageLogs: { where: { deletedAt: null }, orderBy: { date: 'desc' }, take: 1 },
+          reminders: { where: { status: 'PENDING', deletedAt: null }, orderBy: { dueDate: 'asc' }, take: 3 },
           tripLogs: {
-            where: { endMileage: null },
+            where: { endMileage: null, deletedAt: null },
             orderBy: { date: 'desc' },
             take: 1,
             include: { driver: { select: { id: true, displayName: true, email: true } } },
           },
-          _count: { select: { serviceRecords: true, expenses: true } },
+          _count: {
+            select: {
+              serviceRecords: { where: { deletedAt: null } },
+              expenses: { where: { deletedAt: null } },
+            },
+          },
         },
         orderBy: { createdAt: 'asc' },
       }),
       this.prisma.reminder.count({
         where: {
-          vehicle: { organizationId: orgId },
+          vehicle: { organizationId: orgId, deletedAt: null },
           status: 'PENDING',
+          deletedAt: null,
           dueDate: { lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
         },
       }),
       this.prisma.expense.aggregate({
         where: {
-          vehicle: { organizationId: orgId },
+          vehicle: { organizationId: orgId, deletedAt: null },
+          deletedAt: null,
           date: {
             gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
           },
@@ -265,7 +281,8 @@ export class OrganizationsService {
     await this.requireMembership(orgId, userId)
 
     const where: Prisma.ExpenseWhereInput = {
-      vehicle: { organizationId: orgId },
+      deletedAt: null,
+      vehicle: { organizationId: orgId, deletedAt: null },
     }
     if (query.vehicleId) where.vehicleId = query.vehicleId
     if (query.category) where.category = query.category
@@ -301,7 +318,7 @@ export class OrganizationsService {
     // Enrich vehicle grouping with vehicle details
     const vehicleIds = byVehicle.map((r) => r.vehicleId)
     const vehicleDetails = await this.prisma.vehicle.findMany({
-      where: { id: { in: vehicleIds } },
+      where: { id: { in: vehicleIds }, deletedAt: null },
       select: { id: true, make: true, model: true, licensePlate: true },
     })
     const vehicleMap = Object.fromEntries(vehicleDetails.map((v) => [v.id, v]))
@@ -324,8 +341,8 @@ export class OrganizationsService {
     await this.requireRole(orgId, userId, 'MANAGER')
 
     const vehicleFilter = dto.vehicleIds?.length
-      ? { id: { in: dto.vehicleIds }, organizationId: orgId }
-      : { organizationId: orgId }
+      ? { id: { in: dto.vehicleIds }, organizationId: orgId, deletedAt: null }
+      : { organizationId: orgId, deletedAt: null }
 
     const vehicles = await this.prisma.vehicle.findMany({
       where: vehicleFilter,
@@ -452,5 +469,134 @@ export class OrganizationsService {
     if (!vehicle) throw new NotFoundException('Vehicle not found')
     if (vehicle.organizationId !== orgId) throw new ForbiddenException()
     return vehicle
+  }
+
+  // ── Invites ───────────────────────────────────────────────────────────────
+
+  async createInvite(orgId: string, actorId: string, dto: CreateInviteDto) {
+    await this.requireRole(orgId, actorId, 'MANAGER')
+    const org = await this.prisma.organization.findUnique({ where: { id: orgId }, select: { id: true, name: true } })
+    if (!org) throw new NotFoundException('Organization not found')
+
+    // Reject if email is already a member
+    const existingMember = await this.prisma.organizationMember.findFirst({
+      where: { organizationId: orgId, user: { email: dto.email } },
+    })
+    if (existingMember) throw new BadRequestException('User is already a member of this organization')
+
+    // Invalidate any previous pending invite for this email+org
+    await this.prisma.orgInvite.deleteMany({
+      where: { organizationId: orgId, email: dto.email, acceptedAt: null },
+    })
+
+    const token = randomBytes(32).toString('hex')
+    const tokenHash = createHash('sha256').update(token).digest('hex')
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+
+    await this.prisma.orgInvite.create({
+      data: { organizationId: orgId, email: dto.email, role: dto.role, tokenHash, expiresAt, createdBy: actorId },
+    })
+
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3001'
+    const inviteUrl = `${frontendUrl}/invite?token=${token}`
+
+    await this.mail.sendRaw(
+      dto.email,
+      `You've been invited to join ${org.name} on Smurbók`,
+      `You have been invited to join <b>${org.name}</b> as <b>${dto.role}</b>.<br><br>` +
+      `<a href="${inviteUrl}">Accept invitation</a><br><br>` +
+      `This link expires in 7 days.`,
+    )
+
+    return { invited: true, email: dto.email, role: dto.role, expiresAt }
+  }
+
+  async listInvites(orgId: string, actorId: string) {
+    await this.requireRole(orgId, actorId, 'MANAGER')
+    return this.prisma.orgInvite.findMany({
+      where: { organizationId: orgId, acceptedAt: null, expiresAt: { gt: new Date() } },
+      select: { id: true, email: true, role: true, expiresAt: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+    })
+  }
+
+  async revokeInvite(orgId: string, inviteId: string, actorId: string) {
+    await this.requireRole(orgId, actorId, 'MANAGER')
+    const invite = await this.prisma.orgInvite.findUnique({ where: { id: inviteId } })
+    if (!invite || invite.organizationId !== orgId) throw new NotFoundException('Invite not found')
+    if (invite.acceptedAt) throw new BadRequestException('Invite already accepted')
+    await this.prisma.orgInvite.delete({ where: { id: inviteId } })
+    return { revoked: true }
+  }
+
+  async checkInvite(token: string) {
+    const tokenHash = createHash('sha256').update(token).digest('hex')
+    const invite = await this.prisma.orgInvite.findUnique({
+      where: { tokenHash },
+      include: { organization: { select: { id: true, name: true, type: true } } },
+    })
+    if (!invite) throw new NotFoundException('Invite not found or expired')
+    if (invite.acceptedAt) throw new BadRequestException('Invite already accepted')
+    if (invite.expiresAt < new Date()) throw new BadRequestException('Invite has expired')
+    return { orgId: invite.organizationId, orgName: invite.organization.name, role: invite.role, email: invite.email }
+  }
+
+  async acceptInvite(token: string, userId: string) {
+    const tokenHash = createHash('sha256').update(token).digest('hex')
+    const invite = await this.prisma.orgInvite.findUnique({ where: { tokenHash } })
+    if (!invite) throw new NotFoundException('Invite not found or expired')
+    if (invite.acceptedAt) throw new BadRequestException('Invite already accepted')
+    if (invite.expiresAt < new Date()) throw new BadRequestException('Invite has expired')
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true } })
+    if (!user) throw new NotFoundException('User not found')
+    if (user.email !== invite.email) throw new ForbiddenException('This invite was sent to a different email address')
+
+    // Idempotent: do nothing if already a member
+    const existing = await this.prisma.organizationMember.findUnique({
+      where: { organizationId_userId: { organizationId: invite.organizationId, userId } },
+    })
+    if (existing) {
+      await this.prisma.orgInvite.update({ where: { id: invite.id }, data: { acceptedAt: new Date() } })
+      return { joined: true, orgId: invite.organizationId, role: existing.role }
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.organizationMember.create({
+        data: { organizationId: invite.organizationId, userId, role: invite.role },
+      }),
+      this.prisma.orgInvite.update({ where: { id: invite.id }, data: { acceptedAt: new Date() } }),
+    ])
+
+    this.audit.log(userId, 'CREATE', 'ORGANIZATION', invite.organizationId)
+    return { joined: true, orgId: invite.organizationId, role: invite.role }
+  }
+
+  // ── Admin: suspend / unsuspend ────────────────────────────────────────────
+
+  async suspend(orgId: string, actorId: string) {
+    const org = await this.prisma.organization.findUnique({ where: { id: orgId }, select: { id: true, suspendedAt: true } })
+    if (!org) throw new NotFoundException('Organization not found')
+    if (org.suspendedAt) throw new BadRequestException('Organization is already suspended')
+    const updated = await this.prisma.organization.update({
+      where: { id: orgId },
+      data: { suspendedAt: new Date() },
+      select: { id: true, name: true, suspendedAt: true },
+    })
+    this.audit.log(actorId, 'UPDATE', 'ORGANIZATION', orgId)
+    return updated
+  }
+
+  async unsuspend(orgId: string, actorId: string) {
+    const org = await this.prisma.organization.findUnique({ where: { id: orgId }, select: { id: true, suspendedAt: true } })
+    if (!org) throw new NotFoundException('Organization not found')
+    if (!org.suspendedAt) throw new BadRequestException('Organization is not suspended')
+    const updated = await this.prisma.organization.update({
+      where: { id: orgId },
+      data: { suspendedAt: null },
+      select: { id: true, name: true, suspendedAt: true },
+    })
+    this.audit.log(actorId, 'UPDATE', 'ORGANIZATION', orgId)
+    return updated
   }
 }

@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl'
 import { useAddReminder } from '@/hooks/use-reminders'
 import { useToast } from '@/providers/toast-provider'
 import { Modal, Field, inputCls } from '@/components/ui/modal'
+import { Button } from '@/components/ui/button'
 
 const REMINDER_TYPES = [
   'OIL_CHANGE', 'INSPECTION', 'INSURANCE_RENEWAL', 'TAX_DUE', 'TIRE_CHANGE', 'OTHER',
@@ -17,6 +18,7 @@ const schema = z.object({
   dueDate: z.string().optional(),
   dueMileage: z.coerce.number().int().min(0).optional().or(z.literal('')),
   note: z.string().optional(),
+  recurrenceMonths: z.coerce.number().int().min(1).max(60).optional().or(z.literal('')),
 }).refine((d) => d.dueDate || d.dueMileage, {
   message: 'Settu inn gjalddaga eða kílómetra',
   path: ['dueDate'],
@@ -42,7 +44,11 @@ export function AddReminderForm({ vehicleId, onClose, onSuccess }: Props) {
 
   function onSubmit(data: FormValues) {
     mutation.mutate(
-      { ...data, dueMileage: data.dueMileage ? Number(data.dueMileage) : undefined },
+      {
+        ...data,
+        dueMileage: data.dueMileage ? Number(data.dueMileage) : undefined,
+        recurrenceMonths: data.recurrenceMonths ? Number(data.recurrenceMonths) : undefined,
+      },
       {
         onSuccess: () => {
           toast(t('common.saveSuccess'))
@@ -77,17 +83,19 @@ export function AddReminderForm({ vehicleId, onClose, onSuccess }: Props) {
           <input type="text" {...register('note')} className={inputCls} />
         </Field>
 
-        {mutation.error && <p className="text-sm text-red-600">{t('common.error')}</p>}
+        <Field label={t('reminders.recurrenceMonths')} error={errors.recurrenceMonths?.message}>
+          <input type="number" {...register('recurrenceMonths')} className={inputCls} placeholder={t('reminders.recurrenceMonthsPlaceholder')} min={1} max={60} />
+        </Field>
+
+        {mutation.error && <p className="text-sm" style={{ color: 'var(--danger)' }}>{t('common.error')}</p>}
 
         <div className="flex gap-3 pt-2">
-          <button type="button" onClick={onClose}
-            className="flex-1 border border-gray-300 rounded-md py-2 text-sm">
+          <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>
             {t('common.cancel')}
-          </button>
-          <button type="submit" disabled={mutation.isPending}
-            className="flex-1 bg-blue-600 text-white rounded-md py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+          </Button>
+          <Button type="submit" className="flex-1" disabled={mutation.isPending}>
             {mutation.isPending ? t('common.loading') : t('common.save')}
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>

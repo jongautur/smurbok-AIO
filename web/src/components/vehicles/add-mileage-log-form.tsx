@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl'
 import { useAddMileageLog } from '@/hooks/use-mileage-logs'
 import { useToast } from '@/providers/toast-provider'
 import { Modal, Field, inputCls } from '@/components/ui/modal'
+import { Button } from '@/components/ui/button'
 
 const schema = z.object({
   mileage: z.coerce.number().int().min(0),
@@ -51,17 +52,15 @@ export function AddMileageLogForm({ vehicleId, onClose, onSuccess }: Props) {
           <input type="text" {...register('note')} className={inputCls} />
         </Field>
 
-        {mutation.error && <p className="text-sm text-red-600">{t('common.error')}</p>}
+        {mutation.error && <p className="text-sm" style={{ color: 'var(--danger)' }}>{t('common.error')}</p>}
 
         <div className="flex gap-3 pt-2">
-          <button type="button" onClick={onClose}
-            className="flex-1 border border-gray-300 rounded-md py-2 text-sm">
+          <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>
             {t('common.cancel')}
-          </button>
-          <button type="submit" disabled={mutation.isPending}
-            className="flex-1 bg-blue-600 text-white rounded-md py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+          </Button>
+          <Button type="submit" className="flex-1" disabled={mutation.isPending}>
             {mutation.isPending ? t('common.loading') : t('common.save')}
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>

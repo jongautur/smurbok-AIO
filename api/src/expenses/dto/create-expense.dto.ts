@@ -1,4 +1,4 @@
-import { IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator'
+import { IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsPositive, IsString, IsUUID, MaxLength, Min } from 'class-validator'
 import { ExpenseCategory } from '@prisma/client'
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 
@@ -27,4 +27,27 @@ export class CreateExpenseDto {
   @IsInt()
   @Min(0)
   mileage?: number
+
+  @ApiPropertyOptional({ description: 'Litres of fuel — only relevant for FUEL category; used for fuel efficiency calculations' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  litres?: number
+
+  @ApiPropertyOptional({ description: 'Custom label when category is OTHER' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  customCategory?: string
+
+  @ApiPropertyOptional({ description: 'Recurring interval in months — expense repeats on this schedule' })
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  recurringMonths?: number
+
+  @ApiPropertyOptional({ description: 'Cost center ID — only relevant for org vehicles; used for departmental cost reporting' })
+  @IsOptional()
+  @IsUUID()
+  costCenterId?: string
 }

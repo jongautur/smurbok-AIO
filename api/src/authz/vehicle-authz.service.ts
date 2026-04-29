@@ -39,9 +39,13 @@ export class VehicleAuthzService {
   async assertView(vehicle: Vehicle, userId: string): Promise<Vehicle> {
     if (vehicle.userId === userId) return vehicle
     if (vehicle.organizationId) {
-      const member = await this.prisma.organizationMember.findUnique({
-        where: { organizationId_userId: { organizationId: vehicle.organizationId, userId } },
-      })
+      const [org, member] = await Promise.all([
+        this.prisma.organization.findUnique({ where: { id: vehicle.organizationId }, select: { suspendedAt: true } }),
+        this.prisma.organizationMember.findUnique({
+          where: { organizationId_userId: { organizationId: vehicle.organizationId, userId } },
+        }),
+      ])
+      if (org?.suspendedAt) throw new ForbiddenException('organization_suspended')
       if (member) return vehicle
     }
     throw new ForbiddenException()
@@ -53,9 +57,13 @@ export class VehicleAuthzService {
   async assertEdit(vehicle: Vehicle, userId: string): Promise<Vehicle> {
     if (vehicle.userId === userId) return vehicle
     if (vehicle.organizationId) {
-      const member = await this.prisma.organizationMember.findUnique({
-        where: { organizationId_userId: { organizationId: vehicle.organizationId, userId } },
-      })
+      const [org, member] = await Promise.all([
+        this.prisma.organization.findUnique({ where: { id: vehicle.organizationId }, select: { suspendedAt: true } }),
+        this.prisma.organizationMember.findUnique({
+          where: { organizationId_userId: { organizationId: vehicle.organizationId, userId } },
+        }),
+      ])
+      if (org?.suspendedAt) throw new ForbiddenException('organization_suspended')
       if (member && EDIT_ROLES.has(member.role)) return vehicle
     }
     throw new ForbiddenException()

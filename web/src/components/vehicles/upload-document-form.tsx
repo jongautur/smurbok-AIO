@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { useUploadDocument } from '@/hooks/use-documents'
 import { useToast } from '@/providers/toast-provider'
 import { Modal, Field, inputCls } from '@/components/ui/modal'
+import { Button } from '@/components/ui/button'
 
 const DOCUMENT_TYPES = [
   'INSURANCE',
@@ -98,30 +99,23 @@ export function UploadDocumentForm({ vehicleId, onClose, onSuccess }: Props) {
             ref={fileRef}
             type="file"
             accept=".jpg,.jpeg,.png,.webp,.pdf"
-            className="w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border file:border-gray-300 file:text-sm file:bg-white hover:file:bg-gray-50"
+            className="w-full text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded file:border file:text-sm"
+            style={{ color: 'var(--text-muted)' }}
           />
-          <p className="text-xs text-gray-400 mt-1">{t('documents.fileHint')}</p>
+          <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{t('documents.fileHint')}</p>
         </Field>
 
         {mutation.error && (
-          <p className="text-sm text-red-600">{t('common.error')}</p>
+          <p className="text-sm" style={{ color: 'var(--danger)' }}>{t('common.error')}</p>
         )}
 
         <div className="flex gap-3 pt-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 border border-gray-300 rounded-md py-2 text-sm"
-          >
+          <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>
             {t('common.cancel')}
-          </button>
-          <button
-            type="submit"
-            disabled={mutation.isPending}
-            className="flex-1 bg-blue-600 text-white rounded-md py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
-          >
+          </Button>
+          <Button type="submit" className="flex-1" disabled={mutation.isPending}>
             {mutation.isPending ? t('common.loading') : t('documents.upload')}
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>

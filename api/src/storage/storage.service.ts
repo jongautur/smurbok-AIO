@@ -15,13 +15,19 @@ export class StorageService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getUsage(userId: string) {
-    const [documentsCount, vehiclesCount, fileBytes] = await Promise.all([
-      this.prisma.document.count({
-        where: { vehicle: { userId } },
+    const [documents, vehiclesCount, fileBytes] = await Promise.all([
+      this.prisma.document.findMany({
+        where: { vehicle: { userId, deletedAt: null }, deletedAt: null },
+        select: {
+          id: true,
+          label: true,
+          type: true,
+          fileSizeBytes: true,
+          vehicle: { select: { id: true, make: true, model: true, licensePlate: true } },
+        },
+        orderBy: { fileSizeBytes: 'desc' },
       }),
-      this.prisma.vehicle.count({
-        where: { userId },
-      }),
+      this.prisma.vehicle.count({ where: { userId } }),
       Promise.resolve(this.getUserFileSizeBytes(userId)),
     ])
 
@@ -33,13 +39,23 @@ export class StorageService {
         percent: Math.round((fileBytes / FILE_LIMIT_BYTES) * 10000) / 100,
       },
       documents: {
-        count: documentsCount,
+        count: documents.length,
         limit: DOCUMENTS_LIMIT,
       },
       vehicles: {
         count: vehiclesCount,
         limit: VEHICLES_LIMIT,
       },
+      topDocuments: documents.map((d) => ({
+        id: d.id,
+        label: d.label,
+        type: d.type,
+        fileSizeBytes: d.fileSizeBytes,
+        vehicleId: d.vehicle.id,
+        vehicleLabel: [d.vehicle.make, d.vehicle.model, d.vehicle.licensePlate ? `(${d.vehicle.licensePlate})` : null]
+          .filter(Boolean)
+          .join(' '),
+      })),
     }
   }
 
@@ -57,7 +73,7 @@ export class StorageService {
   /** Throws if the user already has the maximum number of documents. */
   async enforceDocumentLimit(userId: string): Promise<void> {
     const count = await this.prisma.document.count({
-      where: { vehicle: { userId } },
+      where: { vehicle: { userId, deletedAt: null }, deletedAt: null },
     })
     if (count >= DOCUMENTS_LIMIT) {
       throw new PayloadTooLargeException(

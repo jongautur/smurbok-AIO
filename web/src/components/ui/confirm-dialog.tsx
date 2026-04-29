@@ -1,14 +1,16 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+import { Button } from './button'
 
 interface Props {
+  message?: string
   onConfirm: () => void
   onCancel: () => void
   loading?: boolean
 }
 
-export function ConfirmDialog({ onConfirm, onCancel, loading }: Props) {
+export function ConfirmDialog({ message, onConfirm, onCancel, loading }: Props) {
   const t = useTranslations('common')
 
   return (
@@ -16,22 +18,18 @@ export function ConfirmDialog({ onConfirm, onCancel, loading }: Props) {
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4"
       onClick={(e) => { if (e.target === e.currentTarget) onCancel() }}
     >
-      <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
-        <p className="text-sm text-gray-700 mb-6">{t('confirmDelete')}</p>
+      <div
+        className="rounded-2xl p-6 w-full max-w-sm shadow-xl border"
+        style={{ backgroundColor: 'var(--surface-raised)', borderColor: 'var(--border)' }}
+      >
+        <p className="text-sm mb-6" style={{ color: 'var(--text-primary)' }}>{message ?? t('confirmDelete')}</p>
         <div className="flex gap-3">
-          <button
-            onClick={onCancel}
-            className="flex-1 border border-gray-300 rounded-md py-2 text-sm"
-          >
+          <Button variant="secondary" className="flex-1" onClick={onCancel}>
             {t('cancel')}
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={loading}
-            className="flex-1 bg-red-600 text-white rounded-md py-2 text-sm font-medium hover:bg-red-700 disabled:opacity-50"
-          >
+          </Button>
+          <Button variant="destructive" className="flex-1" onClick={onConfirm} disabled={loading}>
             {loading ? t('loading') : t('delete')}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

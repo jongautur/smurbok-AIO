@@ -10,7 +10,9 @@ import {
   Patch,
   Post,
   Query,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { ApiOperation, ApiResponse, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { VehicleOverviewDto } from './dto/vehicle-overview.dto';
@@ -18,8 +20,11 @@ import type { User } from '@prisma/client';
 import { VehiclesService } from './vehicles.service';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
+import { CreateTransferDto, AcceptTransferDto, DeclineTransferDto } from './dto/create-transfer.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { PaginationDto } from '../common/dto/pagination.dto';
+import { PaginationDto } from '../common/dto/pagination.dto'
+import { VehicleListQueryDto } from './dto/vehicle-list-query.dto';
+import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('vehicles')
 @ApiSecurity('google-workspace')
@@ -28,8 +33,8 @@ export class VehiclesController {
   constructor(private readonly vehiclesService: VehiclesService) {}
 
   @Get()
-  findAll(@CurrentUser() user: User, @Query() pagination: PaginationDto) {
-    return this.vehiclesService.findAll(user.id, pagination.page ?? 1, pagination.limit ?? 20);
+  findAll(@CurrentUser() user: User, @Query() query: VehicleListQueryDto) {
+    return this.vehiclesService.findAll(user.id, query.page ?? 1, query.limit ?? 20, query.archived ?? false);
   }
 
   @Post()
@@ -95,7 +100,86 @@ export class VehiclesController {
   }
 
   @Get(':id/timeline')
-  getTimeline(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
-    return this.vehiclesService.getTimeline(id, user.id);
+  getTimeline(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() pagination: PaginationDto,
+  ) {
+    return this.vehiclesService.getTimeline(id, user.id, pagination.page ?? 1, pagination.limit ?? 20);
+  }
+
+  @Get(':id/export/service-history.pdf')
+  @ApiOperation({ summary: 'Export full service history as PDF — service records, expenses, mileage summary' })
+  exportServiceHistoryPdf(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res() res: Response,
+  ) {
+    return this.vehiclesService.exportServiceHistoryPdf(id, user.id, res);
+  }
+
+  @Get(':id/fuel-efficiency')
+  @ApiOperation({
+    summary: 'Fuel efficiency — km/L and L/100km calculated from FUEL expenses with litres set and mileage logs',
+    description: 'Filter by `from`/`to` date (ISO 8601) to narrow the calculation period. Returns `insufficientData: true` if fewer than 2 mileage logs or no fuel entries with litres exist.',
+  })
+  getFuelEfficiency(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.vehiclesService.getFuelEfficiency(id, user.id, from, to);
+  }
+
+  // ── Vehicle Transfer ─────────────────────────────────────────────────────────
+
+  @Post(':id/transfer')
+  @ApiOperation({ summary: 'Initiate a vehicle ownership transfer — sends an email link to the recipient' })
+  initiateTransfer(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateTransferDto,
+  ) {
+    return this.vehiclesService.initiateTransfer(id, user.id, dto);
+  }
+
+  @Get(':id/transfers')
+  @ApiOperation({ summary: 'List pending transfers for a vehicle' })
+  listPendingTransfers(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.vehiclesService.listPendingTransfers(id, user.id);
+  }
+
+  @Delete(':id/transfers/:transferId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Cancel a pending transfer' })
+  cancelTransfer(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('transferId', ParseUUIDPipe) transferId: string,
+  ) {
+    return this.vehiclesService.cancelTransfer(transferId, user.id);
+  }
+
+  @Public()
+  @Get('transfers/check')
+  @ApiOperation({ summary: 'Check transfer token validity (public) — used by recipient before logging in' })
+  checkTransfer(@Query('token') token: string) {
+    return this.vehiclesService.checkTransfer(token);
+  }
+
+  @Post('transfers/accept')
+  @ApiOperation({ summary: 'Accept a vehicle transfer — caller must be logged in with the invited email' })
+  acceptTransfer(@CurrentUser() user: User, @Body() dto: AcceptTransferDto) {
+    return this.vehiclesService.acceptTransfer(dto.token, user.id);
+  }
+
+  @Post('transfers/decline')
+  @ApiOperation({ summary: 'Decline a vehicle transfer' })
+  declineTransfer(@CurrentUser() user: User, @Body() dto: DeclineTransferDto) {
+    return this.vehiclesService.declineTransfer(dto.token, user.id);
   }
 }

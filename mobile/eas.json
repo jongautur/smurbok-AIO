@@ -1,0 +1,51 @@
+{
+  "cli": {
+    "version": ">= 18.7.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.smurbok.is/v1",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyCWC8o0Ar7ZPD8utPD5AWV2S93oUHWHFnU",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "smurbok-e92f9.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "smurbok-e92f9",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:295745772974:web:24f1a439e922ad45f7bc3f",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "295745772974-h332q22fbphupieablr3ij0aicfg7smc.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "295745772974-54cfts7s3bdvivqhvppes2k6lib96g1n.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "295745772974-1lc7i89l0nst5332feu88hf5tu0ad1k4.apps.googleusercontent.com"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.smurbok.is/v1",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyCWC8o0Ar7ZPD8utPD5AWV2S93oUHWHFnU",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "smurbok-e92f9.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "smurbok-e92f9",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:295745772974:web:24f1a439e922ad45f7bc3f",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "295745772974-h332q22fbphupieablr3ij0aicfg7smc.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "295745772974-54cfts7s3bdvivqhvppes2k6lib96g1n.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "295745772974-1lc7i89l0nst5332feu88hf5tu0ad1k4.apps.googleusercontent.com"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.smurbok.is/v1",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyCWC8o0Ar7ZPD8utPD5AWV2S93oUHWHFnU",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "smurbok-e92f9.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "smurbok-e92f9",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:295745772974:web:24f1a439e922ad45f7bc3f",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "295745772974-h332q22fbphupieablr3ij0aicfg7smc.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "295745772974-54cfts7s3bdvivqhvppes2k6lib96g1n.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "295745772974-1lc7i89l0nst5332feu88hf5tu0ad1k4.apps.googleusercontent.com"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

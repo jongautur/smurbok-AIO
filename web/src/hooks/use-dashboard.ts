@@ -30,7 +30,8 @@ export interface DashboardSummary {
     id: string
     vehicleId: string
     vehicleName: string
-    type: string
+    types: string[]
+    customType: string | null
     date: string
     mileage: number
     shop: string | null

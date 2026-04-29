@@ -5,20 +5,37 @@ export type FuelType =
   | 'HYBRID' | 'PLUG_IN_HYBRID' | 'HYDROGEN'
 
 export type ServiceType =
-  | 'OIL_CHANGE' | 'TIRE_ROTATION' | 'TIRE_CHANGE'
-  | 'BRAKE_SERVICE' | 'FILTER_CHANGE' | 'INSPECTION'
+  | 'OIL_CHANGE' | 'ENGINE_OIL_CHANGE' | 'TRANSMISSION_OIL_CHANGE'
+  | 'TIRE_ROTATION' | 'TIRE_CHANGE'
+  | 'BRAKE_SERVICE' | 'BRAKE_DISCS' | 'BRAKE_PADS' | 'BRAKE_BANDS' | 'HANDBRAKE'
+  | 'FILTER_CHANGE' | 'OIL_FILTER' | 'FUEL_FILTER' | 'TRANSMISSION_FILTER' | 'AIR_FILTER' | 'CABIN_FILTER'
+  | 'INSPECTION' | 'MAIN_INSPECTION' | 'RE_INSPECTION'
   | 'TRANSMISSION_SERVICE' | 'COOLANT_FLUSH'
-  | 'BATTERY_REPLACEMENT' | 'WINDSHIELD' | 'OTHER'
+  | 'BATTERY_REPLACEMENT'
+  | 'WINDSHIELD' | 'WINDSHIELD_REPAIR' | 'WINDSHIELD_REPLACEMENT'
+  | 'OTHER'
 
 export type ExpenseCategory =
   | 'FUEL' | 'SERVICE' | 'INSURANCE' | 'TAX'
-  | 'PARKING' | 'TOLL' | 'REPAIR' | 'OTHER'
+  | 'PARKING' | 'TOLL' | 'REPAIR' | 'THRIF' | 'OTHER'
+
+export interface Paginated<T> {
+  items: T[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
 
 export interface AppUser {
   id: string
   email: string
   displayName: string | null
   language: Language
+  currency: string
+  role: string
+  emailNotifications: boolean
+  createdAt: string
 }
 
 export interface VehicleListItem {
@@ -27,9 +44,11 @@ export interface VehicleListItem {
   model: string
   year: number
   licensePlate: string
+  vin: string | null
   color: string | null
   fuelType: FuelType
   latestMileage: number | null
+  archivedAt: string | null
   counts: {
     serviceRecords: number
     documents: number
@@ -50,7 +69,8 @@ export interface VehicleOverview {
   estimatedMileage: number | null
   latestService: {
     id: string
-    type: ServiceType
+    types: ServiceType[]
+    customType: string | null
     date: string
     mileage: number
     shop: string | null
@@ -70,28 +90,74 @@ export interface VehicleOverview {
   }
 }
 
-export interface TimelineEntry {
-  id: string
-  type: 'service_record' | 'expense' | 'mileage_log'
-  date: string
-  title: ServiceType | ExpenseCategory | 'MILEAGE_LOG'
-  mileage: number | null
-  meta: Record<string, unknown>
-}
+export type TimelineEntry =
+  | {
+      id: string
+      vehicleId: string
+      entryType: 'SERVICE'
+      date: string
+      types: ServiceType[]
+      customType: string | null
+      mileage: number
+      cost: string | null
+      shop: string | null
+      description: string | null
+    }
+  | {
+      id: string
+      vehicleId: string
+      entryType: 'EXPENSE'
+      date: string
+      category: ExpenseCategory
+      amount: string | null
+      description: string | null
+      litres: string | null
+      customCategory: string | null
+      recurringMonths: number | null
+    }
+  | {
+      id: string
+      vehicleId: string
+      entryType: 'MILEAGE'
+      date: string
+      mileage: number
+      note: string | null
+    }
 
-export interface Timeline {
-  vehicleId: string
-  data: TimelineEntry[]
-}
+export type Timeline = Paginated<TimelineEntry>
 
 export interface ServiceRecord {
   id: string
   vehicleId: string
-  type: ServiceType
+  types: ServiceType[]
+  customType: string | null
   mileage: number
   date: string
   description: string | null
   cost: string | null
   shop: string | null
+  createdAt: string
+}
+
+export interface Expense {
+  id: string
+  vehicleId: string
+  category: ExpenseCategory
+  amount: string
+  date: string
+  description: string | null
+  litres: string | null
+  customCategory: string | null
+  recurringMonths: number | null
+  mileage: number | null
+  createdAt: string
+}
+
+export interface MileageLog {
+  id: string
+  vehicleId: string
+  mileage: number
+  date: string
+  note: string | null
   createdAt: string
 }

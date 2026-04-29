@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -8,18 +8,19 @@ import { useTranslations } from 'next-intl'
 import { useAddExpense } from '@/hooks/use-vehicle'
 import { useUploadDocument } from '@/hooks/use-documents'
 import { useToast } from '@/providers/toast-provider'
+import { useDateLocale } from '@/hooks/use-date-locale'
 import { Modal, Field, inputCls } from '@/components/ui/modal'
-
-const EXPENSE_CATEGORIES = [
-  'FUEL', 'SERVICE', 'INSURANCE', 'TAX', 'PARKING', 'TOLL', 'REPAIR', 'OTHER',
-] as const
+import { Button } from '@/components/ui/button'
+import { ExpenseCategorySelector } from './expense-category-selector'
+import type { ExpenseCategory } from '@/types'
 
 const schema = z.object({
-  category: z.enum(EXPENSE_CATEGORIES),
   amount: z.coerce.number().min(0),
   date: z.string().min(1),
   description: z.string().optional(),
   mileage: z.preprocess((v) => (v === '' || v === undefined ? undefined : Number(v)), z.number().int().min(0).optional()),
+  litres: z.preprocess((v) => (v === '' || v === undefined ? undefined : Number(v)), z.number().min(0).optional()),
+  recurringMonths: z.preprocess((v) => (v === '' || v === undefined ? undefined : Number(v)), z.number().int().min(1).optional()),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -33,47 +34,61 @@ interface Props {
 export function AddExpenseForm({ vehicleId, onClose, onSuccess }: Props) {
   const t = useTranslations()
   const { toast } = useToast()
+  const dateLocale = useDateLocale()
   const mutation = useAddExpense(vehicleId)
   const uploadMutation = useUploadDocument(vehicleId)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  const [category, setCategory] = useState<ExpenseCategory>('FUEL')
+  const [customCategory, setCustomCategory] = useState('')
+  const [recurring, setRecurring] = useState(false)
+
   const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { date: new Date().toISOString().split('T')[0], category: 'FUEL' },
+    defaultValues: { date: new Date().toISOString().split('T')[0] },
   })
 
   function onSubmit(d: FormValues) {
-    mutation.mutate(d, {
-      onSuccess: () => {
-        const file = fileRef.current?.files?.[0]
-        if (file) {
-          const label = `${t(`expenseCategory.${d.category}`)} - ${new Date(d.date).toLocaleDateString('is-IS')}`
-          const formData = new FormData()
-          formData.append('file', file)
-          formData.append('type', 'RECEIPT')
-          formData.append('label', label)
-          uploadMutation.mutate(formData, {
-            onSuccess: () => { toast(t('common.saveSuccess')); onSuccess() },
-            onError: () => { toast(t('common.saveSuccess')); onSuccess() },
-          })
-        } else {
-          toast(t('common.saveSuccess'))
-          onSuccess()
-        }
+    mutation.mutate(
+      {
+        ...d,
+        category,
+        customCategory: category === 'OTHER' && customCategory.trim() ? customCategory.trim() : undefined,
+        recurringMonths: recurring ? (d.recurringMonths ?? 1) : undefined,
+        litres: category === 'FUEL' ? d.litres : undefined,
       },
-      onError: () => toast(t('common.error'), 'error'),
-    })
+      {
+        onSuccess: () => {
+          const file = fileRef.current?.files?.[0]
+          if (file) {
+            const label = `${category === 'OTHER' && customCategory.trim() ? customCategory.trim() : t(`expenseCategory.${category}`)} - ${new Date(d.date).toLocaleDateString(dateLocale)}`
+            const formData = new FormData()
+            formData.append('file', file)
+            formData.append('type', 'RECEIPT')
+            formData.append('label', label)
+            uploadMutation.mutate(formData, {
+              onSuccess: () => { toast(t('common.saveSuccess')); onSuccess() },
+              onError: () => { toast(t('common.saveSuccess')); onSuccess() },
+            })
+          } else {
+            toast(t('common.saveSuccess'))
+            onSuccess()
+          }
+        },
+        onError: () => toast(t('common.error'), 'error'),
+      },
+    )
   }
 
   return (
     <Modal onClose={onClose} title={t('expenses.add')}>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <Field label={t('expenses.category')} error={errors.category?.message}>
-          <select {...register('category')} className={inputCls}>
-            {EXPENSE_CATEGORIES.map((cat) => (
-              <option key={cat} value={cat}>{t(`expenseCategory.${cat}`)}</option>
-            ))}
-          </select>
+        <Field label={t('expenses.category')}>
+          <ExpenseCategorySelector
+            value={category}
+            customValue={customCategory}
+            onChange={(cat, custom) => { setCategory(cat); setCustomCategory(custom) }}
+          />
         </Field>
 
         <div className="grid grid-cols-2 gap-3">
@@ -85,6 +100,12 @@ export function AddExpenseForm({ vehicleId, onClose, onSuccess }: Props) {
           </Field>
         </div>
 
+        {category === 'FUEL' && (
+          <Field label={t('expenses.litres')} error={errors.litres?.message}>
+            <input type="number" step="0.01" {...register('litres')} placeholder={t('mileage.optional')} className={inputCls} />
+          </Field>
+        )}
+
         <Field label={t('mileage.current')} error={errors.mileage?.message}>
           <input type="number" {...register('mileage')} placeholder={t('mileage.optional')} className={inputCls} />
         </Field>
@@ -93,27 +114,61 @@ export function AddExpenseForm({ vehicleId, onClose, onSuccess }: Props) {
           <input type="text" {...register('description')} className={inputCls} />
         </Field>
 
+        {/* Recurring toggle */}
+        <div className="flex items-center justify-between py-1">
+          <div>
+            <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{t('expenses.recurring')}</p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('expenses.recurringHint')}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setRecurring((r) => !r)}
+            className="relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors"
+            style={{ backgroundColor: recurring ? 'var(--accent)' : 'var(--border)' }}
+            role="switch"
+            aria-checked={recurring}
+          >
+            <span
+              className="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform"
+              style={{ transform: recurring ? 'translateX(20px)' : 'translateX(0)' }}
+            />
+          </button>
+        </div>
+
+        {recurring && (
+          <Field label={t('expenses.recurringMonths')} error={errors.recurringMonths?.message}>
+            <input
+              type="number"
+              min={1}
+              max={60}
+              {...register('recurringMonths')}
+              placeholder={t('expenses.recurringMonthsPlaceholder')}
+              className={inputCls}
+              defaultValue={1}
+            />
+          </Field>
+        )}
+
         <Field label={t('documents.attachFile')}>
           <input
             ref={fileRef}
             type="file"
             accept=".jpg,.jpeg,.png,.webp,.pdf"
-            className="w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border file:border-gray-300 file:text-sm file:bg-white hover:file:bg-gray-50"
+            className="w-full text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded file:border file:text-sm"
+            style={{ color: 'var(--text-muted)' }}
           />
-          <p className="text-xs text-gray-400 mt-1">{t('documents.fileHint')}</p>
+          <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{t('documents.fileHint')}</p>
         </Field>
 
-        {mutation.error && <p className="text-sm text-red-600">{t('common.error')}</p>}
+        {mutation.error && <p className="text-sm" style={{ color: 'var(--danger)' }}>{t('common.error')}</p>}
 
         <div className="flex gap-3 pt-2">
-          <button type="button" onClick={onClose}
-            className="flex-1 border border-gray-300 rounded-md py-2 text-sm">
+          <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>
             {t('common.cancel')}
-          </button>
-          <button type="submit" disabled={mutation.isPending || uploadMutation.isPending}
-            className="flex-1 bg-blue-600 text-white rounded-md py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+          </Button>
+          <Button type="submit" className="flex-1" disabled={mutation.isPending || uploadMutation.isPending}>
             {(mutation.isPending || uploadMutation.isPending) ? t('common.loading') : t('common.save')}
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>
