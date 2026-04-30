@@ -150,6 +150,7 @@
     "fuelType": "Fuel type",
     "mileage": "Mileage",
     "estimatedMileage": "Est. mileage",
+    "estimatedDailyKm": "Daily avg.",
     "overview": "Overview",
     "timeline": "History",
     "lastService": "Last service",

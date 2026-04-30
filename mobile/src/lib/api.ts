@@ -79,6 +79,7 @@ export interface VehicleOverview {
   archivedAt: string | null;
   latestMileage: number | null;
   estimatedMileage: number | null;
+  estimatedDailyKm: number | null;
   latestService: { id: string; type: string; date: string; mileage: number; shop: string | null } | null;
   upcomingReminders: { id: string; type: string; dueDate: string | null; dueMileage: number | null; status: string }[];
   counts: { serviceRecords: number; documents: number; expenses: number; reminders: number };

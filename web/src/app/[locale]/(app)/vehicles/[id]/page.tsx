@@ -131,12 +131,15 @@ export default function VehiclePage() {
       {/* Overview */}
       {tab === 'overview' && (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <Stat label={t('vehicles.mileage')}>
               {v.latestMileage != null ? `${v.latestMileage.toLocaleString()} km` : '—'}
             </Stat>
             <Stat label={t('vehicles.estimatedMileage')}>
               {v.estimatedMileage != null ? `~${v.estimatedMileage.toLocaleString()} km` : '—'}
+            </Stat>
+            <Stat label={t('vehicles.estimatedDailyKm')}>
+              {v.estimatedDailyKm != null ? `${v.estimatedDailyKm} km/dag` : '—'}
             </Stat>
           </div>
           <div className="grid grid-cols-2 gap-3">

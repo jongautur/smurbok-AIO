@@ -79,6 +79,7 @@ export interface VehicleOverview {
   fuelType: FuelType
   latestMileage: number | null
   estimatedMileage: number | null
+  estimatedDailyKm: number | null
   latestService: {
     id: string
     types: ServiceType[]

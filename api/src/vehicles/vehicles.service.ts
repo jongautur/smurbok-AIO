@@ -154,7 +154,7 @@ export class VehiclesService {
     await this.vehicleAuthz.assertView(vehicle, userId);
 
     const latestMileage = vehicle.mileageLogs[0]?.mileage ?? null;
-    const estimatedMileage = this.estimateCurrentMileage(vehicle.mileageLogs);
+    const estimate = this.estimateCurrentMileage(vehicle.mileageLogs);
 
     return {
       id: vehicle.id,
@@ -166,7 +166,8 @@ export class VehiclesService {
       color: vehicle.color,
       fuelType: vehicle.fuelType,
       latestMileage,
-      estimatedMileage,
+      estimatedMileage: estimate?.mileage ?? null,
+      estimatedDailyKm: estimate?.dailyKm ?? null,
       latestService: vehicle.serviceRecords[0]
         ? {
             id: vehicle.serviceRecords[0].id,
@@ -444,10 +445,9 @@ export class VehiclesService {
 
   // ── private helpers ──────────────────────────────────────────────────────────
 
-  private estimateCurrentMileage(logs: { mileage: number; date: Date }[]): number | null {
+  private estimateCurrentMileage(logs: { mileage: number; date: Date }[]): { mileage: number; dailyKm: number } | null {
     if (logs.length === 0) return null;
 
-    // Sort ascending by date to find oldest→newest span
     const sorted = [...logs].sort((a, b) => a.date.getTime() - b.date.getTime());
     const latest = sorted[sorted.length - 1];
 
@@ -465,7 +465,10 @@ export class VehiclesService {
     }
 
     const daysSinceLatest = Math.max(0, (Date.now() - latest.date.getTime()) / 86_400_000);
-    return Math.round(latest.mileage + daysSinceLatest * kmPerDay);
+    return {
+      mileage: Math.round(latest.mileage + daysSinceLatest * kmPerDay),
+      dailyKm: Math.round(kmPerDay * 10) / 10,
+    };
   }
 
   async exportServiceHistoryPdf(vehicleId: string, userId: string, res: Response): Promise<void> {

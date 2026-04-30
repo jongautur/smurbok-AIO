@@ -498,6 +498,14 @@ export default function VehicleDetailScreen() {
                   </Text>
                 </View>
               )}
+              {overview.estimatedDailyKm != null && (
+                <View style={[s.chip, { backgroundColor: C.overlay }]}>
+                  <Ionicons name="speedometer-outline" size={12} color={C.mutedLight} />
+                  <Text style={{ fontSize: FONT.xs, color: C.mutedLight, fontWeight: '500' }}>
+                    {overview.estimatedDailyKm} km/dag
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
 

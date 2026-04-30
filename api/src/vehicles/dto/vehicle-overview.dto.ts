@@ -41,6 +41,9 @@ export class VehicleOverviewDto {
   @ApiPropertyOptional({ type: Number, description: 'Projected current odometer value based on historical km/day rate' })
   estimatedMileage: number | null
 
+  @ApiPropertyOptional({ type: Number, description: 'Estimated daily driving rate (km/day) based on mileage log history' })
+  estimatedDailyKm: number | null
+
   @ApiPropertyOptional({ type: LatestServiceDto })
   latestService: LatestServiceDto | null
 
