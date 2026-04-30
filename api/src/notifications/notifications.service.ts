@@ -12,7 +12,7 @@ const DEFAULT_KM_PER_YEAR = 15_000
 const DEFAULT_KM_PER_DAY = DEFAULT_KM_PER_YEAR / 365
 const MIN_DAYS_FOR_RATE = 30
 
-type StageFlag = 'notifiedStage1' | 'notifiedStage2' | 'notifiedStage3'
+type StageFlag = 'notifiedStage1' | 'notifiedStage2' | 'notifiedStage3' | 'notifiedStage4'
 
 const DATE_STAGES: { daysOffset: number; flag: StageFlag }[] = [
   { daysOffset: 14, flag: 'notifiedStage1' },
@@ -20,10 +20,12 @@ const DATE_STAGES: { daysOffset: number; flag: StageFlag }[] = [
   { daysOffset: 0,  flag: 'notifiedStage3' },
 ]
 
-const KM_STAGES: { kmBefore: number; flag: StageFlag }[] = [
+// kmBefore: fire when kmRemaining <= this value. Use -Infinity for overdue (already past).
+const KM_STAGES: { kmBefore: number; flag: StageFlag; overdue?: true }[] = [
   { kmBefore: 1000, flag: 'notifiedStage1' },
   { kmBefore: 500,  flag: 'notifiedStage2' },
   { kmBefore: 100,  flag: 'notifiedStage3' },
+  { kmBefore: 0,    flag: 'notifiedStage4', overdue: true },
 ]
 
 @Injectable()
@@ -103,14 +105,22 @@ export class NotificationsService {
 
       const lang = (user.language ?? 'en') as Lang
       const typeLabel = reminderTypeLabels[reminder.type]?.[lang] ?? reminder.type.replace(/_/g, ' ')
-      const kmLabel = kmRemaining <= 0
-        ? (lang === 'is' ? 'gjaldfallið' : 'overdue')
-        : `${Math.round(kmRemaining)} km`
-      const subject = `${typeLabel} · ${kmLabel} · ${reminder.vehicle.licensePlate}`
 
-      await this.sendReminderNotification(user, reminder, subject, kmLabel, lang)
+      let subject: string
+      let stageLabel: string
+      if (stage.overdue) {
+        stageLabel = lang === 'is'
+          ? `Þú ert kominn yfir skráða kílómetra fyrir ${typeLabel}`
+          : `You have exceeded the recorded mileage for ${typeLabel}`
+        subject = `${typeLabel} · ${lang === 'is' ? 'Gjaldfallið' : 'Overdue'} · ${reminder.vehicle.licensePlate}`
+      } else {
+        stageLabel = `${Math.round(kmRemaining)} km`
+        subject = `${typeLabel} · ${stageLabel} · ${reminder.vehicle.licensePlate}`
+      }
+
+      await this.sendReminderNotification(user, reminder, subject, stageLabel, lang)
       await this.prisma.reminder.update({ where: { id: reminder.id }, data: { [stage.flag]: true } })
-      this.logger.log(`Sent mileage reminder (${kmLabel} remaining) to ${user.email} for reminder ${reminder.id}`)
+      this.logger.log(`Sent mileage reminder (${stageLabel}) to ${user.email} for reminder ${reminder.id}`)
     }
   }
 

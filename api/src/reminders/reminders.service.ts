@@ -97,13 +97,13 @@ export class RemindersService {
     if (!reminder) throw new NotFoundException('Reminder not found')
     await this.vehicleAuthz.requireEdit(reminder.vehicleId, userId)
 
-    const resetFlags = { notifiedStage1: false, notifiedStage2: false, notifiedStage3: false }
+    const resetFlags = { notifiedStage1: false, notifiedStage2: false, notifiedStage3: false, notifiedStage4: false }
 
-    // Mileage-based reminder: always snooze by 1000 km
+    // Mileage-based reminder: always snooze by 500 km
     if (reminder.dueMileage !== null) {
       const updated = await this.prisma.reminder.update({
         where: { id },
-        data: { status: 'SNOOZED', dueMileage: reminder.dueMileage + 1000, ...resetFlags },
+        data: { status: 'SNOOZED', dueMileage: reminder.dueMileage + 500, ...resetFlags },
       })
       this.audit.log(userId, 'UPDATE', 'REMINDER', id)
       return updated
