@@ -9,6 +9,7 @@ import { useDateLocale } from '@/hooks/use-date-locale'
 import { EditServiceRecordForm } from './edit-service-record-form'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
+import { LinkedDocuments } from './linked-documents'
 import type { ServiceRecord } from '@/types'
 
 interface Props {
@@ -74,6 +75,7 @@ function ServiceRecordCard({ record, vehicleId }: { record: ServiceRecord; vehic
                 {Number(record.cost).toLocaleString()} kr
               </p>
             )}
+            <LinkedDocuments documents={record.documents} />
           </div>
           <div className="flex items-center gap-0.5 shrink-0">
             <button
@@ -112,6 +114,7 @@ function ServiceRecordCard({ record, vehicleId }: { record: ServiceRecord; vehic
             cost: record.cost,
             shop: record.shop,
             description: record.description,
+            documents: record.documents,
           }}
           onClose={() => setEditOpen(false)}
           onSuccess={() => setEditOpen(false)}

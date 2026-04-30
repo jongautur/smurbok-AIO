@@ -269,15 +269,14 @@
     "type": "Type",
     "label": "Name",
     "labelPlaceholder": "e.g. Insurance 2026",
-    "expiresAt": "Expires",
     "file": "File",
     "fileHint": "PDF, JPG, PNG or WebP — max 10 MB",
     "fileRequired": "Please select a file",
     "attachFile": "Attach document (optional)",
+    "linkExisting": "Link existing documents",
+    "noExisting": "No uploaded documents to link",
     "view": "View",
-    "download": "Download",
-    "expired": "Expired",
-    "expiresSoon": "Expires soon"
+    "download": "Download"
   },
   "documentType": {
     "INSURANCE": "Insurance",

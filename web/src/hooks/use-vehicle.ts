@@ -46,6 +46,7 @@ export function useAddServiceRecord(vehicleId: string) {
       cost?: number
       shop?: string
       description?: string
+      documentIds?: string[]
     }) =>
       api
         .post<ServiceRecord>(`/vehicles/${vehicleId}/service-records`, data)
@@ -68,9 +69,10 @@ export function useAddExpense(vehicleId: string) {
       litres?: number
       customCategory?: string
       recurringMonths?: number
+      documentIds?: string[]
     }) =>
       api
-        .post(`/vehicles/${vehicleId}/expenses`, data)
+        .post<Expense>(`/vehicles/${vehicleId}/expenses`, data)
         .then((r) => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicle', vehicleId] })
@@ -90,6 +92,7 @@ export function useUpdateServiceRecord(vehicleId: string) {
       cost?: number
       shop?: string
       description?: string
+      documentIds?: string[]
     }) =>
       api.patch<ServiceRecord>(`/service-records/${id}`, data).then((r) => r.data),
     onSuccess: () => {
@@ -132,8 +135,9 @@ export function useUpdateExpense(vehicleId: string) {
       litres?: number
       customCategory?: string
       recurringMonths?: number
+      documentIds?: string[]
     }) =>
-      api.patch(`/expenses/${id}`, data).then((r) => r.data),
+      api.patch<Expense>(`/expenses/${id}`, data).then((r) => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicle', vehicleId] })
     },

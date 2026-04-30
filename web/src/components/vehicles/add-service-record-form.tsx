@@ -12,6 +12,7 @@ import { useDateLocale } from '@/hooks/use-date-locale'
 import { Modal, Field, inputCls } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { ServiceTypeSelector, type ServiceEntry } from './service-type-selector'
+import { DocumentLinkSelector } from './document-link-selector'
 
 const INSPECTION_TYPES = ['INSPECTION', 'MAIN_INSPECTION', 'RE_INSPECTION']
 const INSPECTION_STATIONS = ['Aðalskoðun', 'Frumherji', 'Betri skoðun', 'Tékkland']
@@ -40,6 +41,7 @@ export function AddServiceRecordForm({ vehicleId, onClose, onSuccess }: Props) {
   const uploadMutation = useUploadDocument(vehicleId)
   const fileRef = useRef<HTMLInputElement>(null)
   const [services, setServices] = useState<ServiceEntry[]>([])
+  const [documentIds, setDocumentIds] = useState<string[]>([])
   const [servicesError, setServicesError] = useState<string | undefined>()
   const [stationError, setStationError] = useState<string | undefined>()
 
@@ -67,8 +69,8 @@ export function AddServiceRecordForm({ vehicleId, onClose, onSuccess }: Props) {
     const types = services.map((s) => s.type)
     const customType = services.find((s) => s.type === 'OTHER')?.customName
 
-    mutation.mutate({ types, customType, ...d }, {
-      onSuccess: () => {
+    mutation.mutate({ types, customType, documentIds, ...d }, {
+      onSuccess: (record) => {
         const file = fileRef.current?.files?.[0]
         if (file) {
           const label = `${services.map((s) => s.customName || t(`serviceType.${s.type}`)).join(', ')} - ${new Date(d.date).toLocaleDateString(dateLocale)}`
@@ -76,6 +78,7 @@ export function AddServiceRecordForm({ vehicleId, onClose, onSuccess }: Props) {
           formData.append('file', file)
           formData.append('type', 'RECEIPT')
           formData.append('label', label)
+          formData.append('serviceRecordId', record.id)
           uploadMutation.mutate(formData, {
             onSuccess: () => { toast(t('common.saveSuccess')); onSuccess() },
             onError: () => { toast(t('common.saveSuccess')); onSuccess() },
@@ -135,6 +138,10 @@ export function AddServiceRecordForm({ vehicleId, onClose, onSuccess }: Props) {
 
         <Field label={t('serviceRecords.description')} error={errors.description?.message}>
           <textarea {...register('description')} rows={2} className={inputCls} />
+        </Field>
+
+        <Field label={t('documents.linkExisting')}>
+          <DocumentLinkSelector vehicleId={vehicleId} selectedIds={documentIds} onChange={setDocumentIds} />
         </Field>
 
         <Field label={t('documents.attachFile')}>

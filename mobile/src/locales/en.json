@@ -90,9 +90,13 @@
     "edit": "Edit service record",
     "empty": "No service records",
     "typeLabel": "Service type",
+    "selectTypes": "Add service",
+    "otherPlaceholder": "Service name…",
     "mileageLabel": "Mileage (km)",
     "dateLabel": "Date",
     "shopLabel": "Shop (optional)",
+    "inspectionStation": "Inspection station",
+    "inspectionStationPlaceholder": "Select station…",
     "costLabel": "Cost in kr (optional)",
     "notesLabel": "Notes (optional)",
     "save": "Save service record",
@@ -107,6 +111,12 @@
     "amountLabel": "Amount (kr)",
     "dateLabel": "Date",
     "descriptionLabel": "Description (optional)",
+    "litresLabel": "Litres (optional)",
+    "customCategoryPlaceholder": "Category name…",
+    "recurring": "Recurring",
+    "recurringHint": "E.g. monthly subscription or standing charge",
+    "recurringMonths": "Repeat every (months)",
+    "recurringMonthsPlaceholder": "e.g. 1 for monthly",
     "save": "Save expense",
     "saveEdit": "Save changes"
   },
@@ -164,8 +174,9 @@
     "INSURANCE": "Insurance",
     "TAX": "Tax",
     "PARKING": "Parking",
-    "TOLL": "Toll",
+    "TOLL": "Mileage charge",
     "REPAIR": "Repair",
+    "THRIF": "Cleaning",
     "OTHER": "Other"
   },
   "fuelType": {
@@ -178,26 +189,50 @@
   },
   "serviceType": {
     "OIL_CHANGE": "Oil change",
+    "ENGINE_OIL_CHANGE": "Engine oil change",
+    "TRANSMISSION_OIL_CHANGE": "Transmission oil change",
     "TIRE_ROTATION": "Tire rotation",
     "TIRE_CHANGE": "Tire change",
     "BRAKE_SERVICE": "Brake service",
+    "BRAKE_DISCS": "Brake discs",
+    "BRAKE_PADS": "Brake pads",
+    "BRAKE_BANDS": "Brake bands",
+    "HANDBRAKE": "Handbrake",
     "FILTER_CHANGE": "Filter change",
+    "OIL_FILTER": "Oil filter",
+    "FUEL_FILTER": "Fuel filter",
+    "TRANSMISSION_FILTER": "Transmission filter",
+    "AIR_FILTER": "Air filter",
+    "CABIN_FILTER": "Cabin filter",
     "INSPECTION": "Inspection",
-    "TRANSMISSION_SERVICE": "Transmission",
+    "MAIN_INSPECTION": "Main inspection",
+    "RE_INSPECTION": "Re-inspection",
+    "TRANSMISSION_SERVICE": "Transmission service",
     "COOLANT_FLUSH": "Coolant flush",
-    "BATTERY_REPLACEMENT": "Battery",
+    "BATTERY_REPLACEMENT": "Battery replacement",
     "WINDSHIELD": "Windshield",
+    "WINDSHIELD_REPAIR": "Windshield repair",
+    "WINDSHIELD_REPLACEMENT": "Windshield replacement",
     "OTHER": "Other"
+  },
+  "serviceCategory": {
+    "OIL": "Oil",
+    "TIRES": "Tires",
+    "FILTER_GROUP": "Filters",
+    "BRAKE_GROUP": "Brakes",
+    "INSPECTION_GROUP": "Inspection",
+    "WINDSHIELD_GROUP": "Windshield"
   },
   "documents": {
     "title": "Documents",
     "upload": "Upload document",
     "nameLabel": "Name",
     "empty": "No documents uploaded",
-    "expired": "Expired",
-    "expiresSoon": "Expires soon",
     "view": "View",
-    "attach": "Attach file (optional)"
+    "download": "Download",
+    "attach": "Attach file (optional)",
+    "linkExisting": "Link existing documents",
+    "noExisting": "No uploaded documents to link"
   },
   "documentType": {
     "INSURANCE": "Insurance",
@@ -250,6 +285,7 @@
     "enterModel": "Enter a model",
     "enterLicensePlate": "Enter a license plate",
     "failedToSave": "Failed to save",
-    "failedToLoad": "Failed to load"
+    "failedToLoad": "Failed to load",
+    "selectServiceType": "Select at least one service type"
   }
 }

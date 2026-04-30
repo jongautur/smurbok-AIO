@@ -30,7 +30,6 @@ export function UploadDocumentForm({ vehicleId, onClose, onSuccess }: Props) {
 
   const [type, setType] = useState<string>(DOCUMENT_TYPES[0])
   const [label, setLabel] = useState('')
-  const [expiresAt, setExpiresAt] = useState('')
   const [fileError, setFileError] = useState('')
 
   function handleSubmit(e: React.FormEvent) {
@@ -46,7 +45,6 @@ export function UploadDocumentForm({ vehicleId, onClose, onSuccess }: Props) {
     formData.append('file', file)
     formData.append('type', type)
     formData.append('label', label)
-    if (expiresAt) formData.append('expiresAt', expiresAt)
 
     mutation.mutate(formData, {
       onSuccess: () => {
@@ -82,15 +80,6 @@ export function UploadDocumentForm({ vehicleId, onClose, onSuccess }: Props) {
             required
             className={inputCls}
             placeholder={t('documents.labelPlaceholder')}
-          />
-        </Field>
-
-        <Field label={t('documents.expiresAt')}>
-          <input
-            type="date"
-            value={expiresAt}
-            onChange={(e) => setExpiresAt(e.target.value)}
-            className={inputCls}
           />
         </Field>
 

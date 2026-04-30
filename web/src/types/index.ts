@@ -27,6 +27,18 @@ export interface Paginated<T> {
   totalPages: number
 }
 
+export interface Document {
+  id: string
+  vehicleId: string
+  serviceRecordId: string | null
+  expenseId: string | null
+  type: string
+  label: string
+  fileUrl: string
+  fileSizeBytes: number | null
+  createdAt: string
+}
+
 export interface AppUser {
   id: string
   email: string
@@ -102,6 +114,7 @@ export type TimelineEntry =
       cost: string | null
       shop: string | null
       description: string | null
+      documents: Document[]
     }
   | {
       id: string
@@ -114,6 +127,7 @@ export type TimelineEntry =
       litres: string | null
       customCategory: string | null
       recurringMonths: number | null
+      documents: Document[]
     }
   | {
       id: string
@@ -136,6 +150,7 @@ export interface ServiceRecord {
   description: string | null
   cost: string | null
   shop: string | null
+  documents: Document[]
   createdAt: string
 }
 
@@ -150,6 +165,7 @@ export interface Expense {
   customCategory: string | null
   recurringMonths: number | null
   mileage: number | null
+  documents: Document[]
   createdAt: string
 }
 

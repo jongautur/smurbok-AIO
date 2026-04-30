@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -8,6 +9,18 @@ import { VehicleAuthzService } from '../authz/vehicle-authz.service';
 import { CreateServiceRecordDto } from './dto/create-service-record.dto';
 import { UpdateServiceRecordDto } from './dto/update-service-record.dto';
 import { paginate, type Paginated } from '../common/dto/pagination.dto';
+
+const LINKED_DOCUMENT_SELECT = {
+  id: true,
+  vehicleId: true,
+  serviceRecordId: true,
+  expenseId: true,
+  type: true,
+  label: true,
+  fileUrl: true,
+  fileSizeBytes: true,
+  createdAt: true,
+} as const;
 
 @Injectable()
 export class ServiceRecordsService {
@@ -22,7 +35,19 @@ export class ServiceRecordsService {
     const skip = (page - 1) * limit
     const where = { vehicleId }
     const [records, total] = await this.prisma.$transaction([
-      this.prisma.serviceRecord.findMany({ where, orderBy: { date: 'desc' }, skip, take: limit }),
+      this.prisma.serviceRecord.findMany({
+        where,
+        include: {
+          documents: {
+            where: { deletedAt: null },
+            select: LINKED_DOCUMENT_SELECT,
+            orderBy: { createdAt: 'desc' },
+          },
+        },
+        orderBy: { date: 'desc' },
+        skip,
+        take: limit,
+      }),
       this.prisma.serviceRecord.count({ where }),
     ]);
     return paginate(records.map((r) => this.toResponse(r)), total, page, limit);
@@ -30,6 +55,7 @@ export class ServiceRecordsService {
 
   async create(vehicleId: string, userId: string, dto: CreateServiceRecordDto) {
     await this.vehicleAuthz.requireEdit(vehicleId, userId);
+    await this.assertDocumentsBelongToVehicle(vehicleId, dto.documentIds);
 
     const date = new Date(dto.date);
 
@@ -46,15 +72,20 @@ export class ServiceRecordsService {
       },
     });
 
+    await this.syncLinkedDocuments(vehicleId, record.id, dto.documentIds);
+
     await this.syncMileageLog(vehicleId, dto.mileage, date);
     this.audit.log(userId, 'CREATE', 'SERVICE_RECORD', record.id);
-    return this.toResponse(record);
+    return this.findRecordForResponse(record.id);
   }
 
   async update(id: string, userId: string, dto: UpdateServiceRecordDto) {
     const existing = await this.prisma.serviceRecord.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Service record not found');
     await this.vehicleAuthz.requireEdit(existing.vehicleId, userId);
+    if (dto.documentIds !== undefined) {
+      await this.assertDocumentsBelongToVehicle(existing.vehicleId, dto.documentIds);
+    }
 
     const record = await this.prisma.serviceRecord.update({
       where: { id },
@@ -69,8 +100,12 @@ export class ServiceRecordsService {
       },
     });
 
+    if (dto.documentIds !== undefined) {
+      await this.syncLinkedDocuments(existing.vehicleId, id, dto.documentIds);
+    }
+
     this.audit.log(userId, 'UPDATE', 'SERVICE_RECORD', id);
-    return this.toResponse(record);
+    return this.findRecordForResponse(record.id);
   }
 
   async remove(id: string, userId: string) {
@@ -110,6 +145,54 @@ export class ServiceRecordsService {
     });
   }
 
+  private async syncLinkedDocuments(vehicleId: string, serviceRecordId: string, documentIds?: string[]) {
+    if (documentIds === undefined) return;
+
+    const uniqueIds = await this.assertDocumentsBelongToVehicle(vehicleId, documentIds);
+
+    await this.prisma.$transaction([
+      this.prisma.document.updateMany({
+        where: { serviceRecordId, vehicleId, id: { notIn: uniqueIds } },
+        data: { serviceRecordId: null },
+      }),
+      ...(uniqueIds.length
+        ? [
+            this.prisma.document.updateMany({
+              where: { id: { in: uniqueIds }, vehicleId, deletedAt: null },
+              data: { serviceRecordId },
+            }),
+          ]
+        : []),
+    ]);
+  }
+
+  private async assertDocumentsBelongToVehicle(vehicleId: string, documentIds?: string[]) {
+    const uniqueIds = Array.from(new Set(documentIds ?? []));
+    if (uniqueIds.length > 0) {
+      const count = await this.prisma.document.count({
+        where: { id: { in: uniqueIds }, vehicleId, deletedAt: null },
+      });
+      if (count !== uniqueIds.length) {
+        throw new BadRequestException('One or more documents do not belong to this vehicle');
+      }
+    }
+    return uniqueIds;
+  }
+
+  private async findRecordForResponse(id: string) {
+    const record = await this.prisma.serviceRecord.findUniqueOrThrow({
+      where: { id },
+      include: {
+        documents: {
+          where: { deletedAt: null },
+          select: LINKED_DOCUMENT_SELECT,
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+    return this.toResponse(record);
+  }
+
   private toResponse(record: any) {
     return {
       id: record.id,
@@ -121,6 +204,7 @@ export class ServiceRecordsService {
       description: record.description,
       cost: record.cost,
       shop: record.shop,
+      documents: record.documents ?? [],
       createdAt: record.createdAt,
     };
   }

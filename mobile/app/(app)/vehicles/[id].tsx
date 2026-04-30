@@ -33,6 +33,11 @@ const FUEL_COLORS: Record<string, string> = {
 
 const PAGE_SIZE = 10;
 
+function srLabel(sr: { types: string[]; customType: string | null }, t: (key: string, fallback: string) => string) {
+  if (sr.customType) return sr.customType;
+  return sr.types.map((tp) => t(`serviceType.${tp}`, tp)).join(' + ');
+}
+
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
@@ -238,11 +243,12 @@ export default function VehicleDetailScreen() {
   }
 
   function onSrLongPress(sr: ServiceRecord) {
-    Alert.alert(t(`serviceType.${sr.type}`, sr.type), fmtShort(sr.date), [
+    Alert.alert(srLabel(sr, t), fmtShort(sr.date), [
       { text: t('common.edit'), onPress: () => router.push({
         pathname: '/(app)/vehicles/edit-service',
-        params: { recordId: sr.id, type: sr.type, mileage: String(sr.mileage),
-          date: sr.date, shop: sr.shop ?? '', cost: sr.cost ?? '', description: sr.description ?? '' },
+        params: { recordId: sr.id, vehicleId: id, types: JSON.stringify(sr.types), customType: sr.customType ?? '',
+          mileage: String(sr.mileage), date: sr.date, shop: sr.shop ?? '', cost: sr.cost ?? '', description: sr.description ?? '',
+          documentIds: JSON.stringify(sr.documents?.map((d) => d.id) ?? []) },
       })},
       { text: t('common.delete'), style: 'destructive', onPress: () => deleteSr(sr) },
       { text: t('common.cancel'), style: 'cancel' },
@@ -263,8 +269,12 @@ export default function VehicleDetailScreen() {
     Alert.alert(t(`expenseCategory.${exp.category}`, exp.category), `${parseFloat(exp.amount).toLocaleString()} kr`, [
       { text: t('common.edit'), onPress: () => router.push({
         pathname: '/(app)/vehicles/edit-expense',
-        params: { expenseId: exp.id, category: exp.category, amount: exp.amount,
-          date: exp.date, description: exp.description ?? '' },
+        params: {
+          expenseId: exp.id, vehicleId: id, category: exp.category, amount: exp.amount, date: exp.date,
+          description: exp.description ?? '', customCategory: exp.customCategory ?? '',
+          litres: exp.litres ?? '', recurringMonths: exp.recurringMonths != null ? String(exp.recurringMonths) : '',
+          documentIds: JSON.stringify(exp.documents?.map((d) => d.id) ?? []),
+        },
       })},
       { text: t('common.delete'), style: 'destructive', onPress: () => deleteExp(exp) },
       { text: t('common.cancel'), style: 'cancel' },
@@ -610,9 +620,19 @@ export default function VehicleDetailScreen() {
                         <Ionicons name="construct-outline" size={14} color={C.accent} />
                       </View>
                       <View style={{ flex: 1, marginLeft: SPACE[3], marginRight: SPACE[3] }}>
-                        <Text style={{ fontSize: FONT.base, color: C.text, fontWeight: '600' }}>{t(`serviceType.${sr.type}`, sr.type)}</Text>
+                        <Text style={{ fontSize: FONT.base, color: C.text, fontWeight: '600' }}>{srLabel(sr, t)}</Text>
                         {sr.shop && <Text style={{ fontSize: FONT.sm, color: C.muted, marginTop: 1 }}>{sr.shop}</Text>}
                         {sr.description && <Text style={{ fontSize: FONT.xs, color: C.mutedLight, marginTop: 1 }} numberOfLines={1}>{sr.description}</Text>}
+                        {sr.documents && sr.documents.length > 0 && (
+                          <View style={{ flexDirection: 'row', gap: SPACE[1], marginTop: SPACE[1], flexWrap: 'wrap' }}>
+                            {sr.documents.map((doc) => (
+                              <View key={doc.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: C.accentSubtle, borderRadius: RADIUS.sm, paddingHorizontal: 5, paddingVertical: 2 }}>
+                                <Ionicons name="document-outline" size={10} color={C.accent} />
+                                <Text style={{ fontSize: 10, color: C.accent }} numberOfLines={1}>{doc.label}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        )}
                       </View>
                       <View style={{ alignItems: 'flex-end' }}>
                         <Text style={{ fontSize: FONT.xs, color: C.muted }}>{fmtShort(sr.date)}</Text>
@@ -656,6 +676,16 @@ export default function VehicleDetailScreen() {
                       <View style={{ flex: 1, marginLeft: SPACE[3], marginRight: SPACE[3] }}>
                         <Text style={{ fontSize: FONT.base, color: C.text, fontWeight: '600' }}>{t(`expenseCategory.${exp.category}`, exp.category)}</Text>
                         {exp.description && <Text style={{ fontSize: FONT.xs, color: C.mutedLight, marginTop: 1 }} numberOfLines={1}>{exp.description}</Text>}
+                        {exp.documents && exp.documents.length > 0 && (
+                          <View style={{ flexDirection: 'row', gap: SPACE[1], marginTop: SPACE[1], flexWrap: 'wrap' }}>
+                            {exp.documents.map((doc) => (
+                              <View key={doc.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: C.dangerBg, borderRadius: RADIUS.sm, paddingHorizontal: 5, paddingVertical: 2 }}>
+                                <Ionicons name="document-outline" size={10} color={C.danger} />
+                                <Text style={{ fontSize: 10, color: C.danger }} numberOfLines={1}>{doc.label}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        )}
                       </View>
                       <View style={{ alignItems: 'flex-end' }}>
                         <Text style={{ fontSize: FONT.base, color: C.text, fontWeight: '800' }}>{parseFloat(exp.amount).toLocaleString()} kr</Text>
@@ -832,7 +862,7 @@ export default function VehicleDetailScreen() {
               <View style={[s.recordIcon, { backgroundColor: C.accentSubtle, marginBottom: SPACE[3] }]}>
                 <Ionicons name="construct-outline" size={18} color={C.accent} />
               </View>
-              <Text style={{ fontSize: FONT.xl, fontWeight: '700', color: C.text }}>{t(`serviceType.${viewSr.type}`, viewSr.type)}</Text>
+              <Text style={{ fontSize: FONT.xl, fontWeight: '700', color: C.text }}>{srLabel(viewSr, t)}</Text>
               <Text style={{ fontSize: FONT.sm, color: C.muted, marginTop: 4 }}>{fmtDate(viewSr.date)}</Text>
             </View>
             <View style={{ gap: SPACE[3], borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.borderSubtle, paddingTop: SPACE[4] }}>
@@ -858,6 +888,23 @@ export default function VehicleDetailScreen() {
                   <Text style={{ fontSize: FONT.sm, color: C.text, lineHeight: 20 }}>{viewSr.description}</Text>
                 </View>
               ) : null}
+              {viewSr.documents && viewSr.documents.length > 0 && (
+                <View>
+                  <Text style={{ fontSize: FONT.sm, color: C.muted, fontWeight: '500', marginBottom: 6 }}>{t('documents.title')}</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACE[2] }}>
+                    {viewSr.documents.map((doc) => (
+                      <Pressable
+                        key={doc.id}
+                        onPress={() => openDoc(doc)}
+                        style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: SPACE[1], backgroundColor: C.accentSubtle, borderRadius: RADIUS.md, paddingHorizontal: SPACE[2], paddingVertical: SPACE[1], opacity: pressed ? 0.7 : 1 }]}
+                      >
+                        <Ionicons name="document-outline" size={12} color={C.accent} />
+                        <Text style={{ fontSize: FONT.xs, color: C.accent, maxWidth: 120 }} numberOfLines={1}>{doc.label}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              )}
             </View>
             <View style={{ flexDirection: 'row', gap: SPACE[3], marginTop: SPACE[5] }}>
               <Pressable
@@ -873,8 +920,9 @@ export default function VehicleDetailScreen() {
                   setViewSr(null);
                   router.push({
                     pathname: '/(app)/vehicles/edit-service',
-                    params: { recordId: sr.id, type: sr.type, mileage: String(sr.mileage),
-                      date: sr.date, shop: sr.shop ?? '', cost: sr.cost ?? '', description: sr.description ?? '' },
+                    params: { recordId: sr.id, vehicleId: id, types: JSON.stringify(sr.types), customType: sr.customType ?? '',
+                      mileage: String(sr.mileage), date: sr.date, shop: sr.shop ?? '', cost: sr.cost ?? '', description: sr.description ?? '',
+                      documentIds: JSON.stringify(sr.documents?.map((d) => d.id) ?? []) },
                   });
                 }}
               >

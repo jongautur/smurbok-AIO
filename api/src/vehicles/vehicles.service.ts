@@ -20,6 +20,18 @@ import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 import { CreateTransferDto } from './dto/create-transfer.dto';
 import { paginate, type Paginated } from '../common/dto/pagination.dto';
 
+const LINKED_DOCUMENT_SELECT = {
+  id: true,
+  vehicleId: true,
+  serviceRecordId: true,
+  expenseId: true,
+  type: true,
+  label: true,
+  fileUrl: true,
+  fileSizeBytes: true,
+  createdAt: true,
+} as const
+
 @Injectable()
 export class VehiclesService {
   constructor(
@@ -180,8 +192,26 @@ export class VehiclesService {
     await this.vehicleAuthz.requireView(id, userId);
 
     const [serviceRecords, expenses, mileageLogs] = await Promise.all([
-      this.prisma.serviceRecord.findMany({ where: { vehicleId: id, deletedAt: null } }),
-      this.prisma.expense.findMany({ where: { vehicleId: id, deletedAt: null } }),
+      this.prisma.serviceRecord.findMany({
+        where: { vehicleId: id, deletedAt: null },
+        include: {
+          documents: {
+            where: { deletedAt: null },
+            select: LINKED_DOCUMENT_SELECT,
+            orderBy: { createdAt: 'desc' },
+          },
+        },
+      }),
+      this.prisma.expense.findMany({
+        where: { vehicleId: id, deletedAt: null },
+        include: {
+          documents: {
+            where: { deletedAt: null },
+            select: LINKED_DOCUMENT_SELECT,
+            orderBy: { createdAt: 'desc' },
+          },
+        },
+      }),
       this.prisma.mileageLog.findMany({ where: { vehicleId: id, deletedAt: null } }),
     ]);
 
@@ -197,6 +227,7 @@ export class VehiclesService {
         cost: r.cost != null ? r.cost.toString() : null,
         shop: r.shop ?? null,
         description: r.description ?? null,
+        documents: r.documents,
       })),
       ...expenses.map((e) => ({
         id: e.id,
@@ -209,6 +240,7 @@ export class VehiclesService {
         litres: e.litres != null ? e.litres.toString() : null,
         customCategory: e.customCategory ?? null,
         recurringMonths: e.recurringMonths ?? null,
+        documents: e.documents,
       })),
       ...mileageLogs.map((m) => ({
         id: m.id,

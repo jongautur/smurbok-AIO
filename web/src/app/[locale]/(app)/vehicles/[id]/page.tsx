@@ -312,7 +312,7 @@ export default function VehiclePage() {
       )}
       {modal === 'edit_vehicle' && (
         <EditVehicleForm vehicle={v} onClose={() => setModal(null)}
-          onSuccess={() => onFormSuccess(t('common.saveSuccess'))} />
+          onSuccess={() => onFormSuccess()} />
       )}
       {modal === 'document' && (
         <UploadDocumentForm vehicleId={id} onClose={() => setModal(null)}

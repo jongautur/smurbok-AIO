@@ -1,15 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import type { Document } from '@/types'
 
-export interface Document {
-  id: string
-  vehicleId: string
-  type: string
-  label: string
-  fileUrl: string
-  expiresAt: string | null
-  createdAt: string
-}
+export type { Document }
 
 export function useDocuments(vehicleId: string) {
   return useQuery({
@@ -50,4 +43,3 @@ export async function openDocument(id: string, download = false) {
   const url = `${base}/documents/file?token=${data.token}${download ? '&download=1' : ''}`
   window.open(url, '_blank')
 }
-

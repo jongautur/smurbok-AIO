@@ -10,7 +10,8 @@ import { useToast } from '@/providers/toast-provider'
 import { Modal, Field, inputCls } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { ExpenseCategorySelector } from './expense-category-selector'
-import type { ExpenseCategory } from '@/types'
+import { DocumentLinkSelector } from './document-link-selector'
+import type { Document, ExpenseCategory } from '@/types'
 
 const schema = z.object({
   amount: z.coerce.number().min(0),
@@ -33,6 +34,7 @@ interface Props {
     litres: string | null
     customCategory: string | null
     recurringMonths: number | null
+    documents: Document[]
   }
   onClose: () => void
   onSuccess: () => void
@@ -46,6 +48,7 @@ export function EditExpenseForm({ vehicleId, expense, onClose, onSuccess }: Prop
   const [category, setCategory] = useState<ExpenseCategory>(expense.category)
   const [customCategory, setCustomCategory] = useState(expense.customCategory ?? '')
   const [recurring, setRecurring] = useState(!!expense.recurringMonths)
+  const [documentIds, setDocumentIds] = useState<string[]>(expense.documents.map((doc) => doc.id))
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -70,6 +73,7 @@ export function EditExpenseForm({ vehicleId, expense, onClose, onSuccess }: Prop
               customCategory: category === 'OTHER' && customCategory.trim() ? customCategory.trim() : undefined,
               recurringMonths: recurring ? (d.recurringMonths ?? 1) : undefined,
               litres: category === 'FUEL' ? d.litres : undefined,
+              documentIds,
             },
             {
               onSuccess: () => { toast(t('common.saveSuccess')); onSuccess() },
@@ -139,6 +143,10 @@ export function EditExpenseForm({ vehicleId, expense, onClose, onSuccess }: Prop
             />
           </Field>
         )}
+
+        <Field label={t('documents.linkExisting')}>
+          <DocumentLinkSelector vehicleId={vehicleId} selectedIds={documentIds} onChange={setDocumentIds} />
+        </Field>
 
         {mutation.error && <p className="text-sm" style={{ color: 'var(--danger)' }}>{t('common.error')}</p>}
 

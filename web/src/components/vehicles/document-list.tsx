@@ -5,7 +5,6 @@ import { useTranslations } from 'next-intl'
 import { FileText, Eye, Download, X } from 'lucide-react'
 import { useDeleteDocument, openDocument, type Document } from '@/hooks/use-documents'
 import { useToast } from '@/providers/toast-provider'
-import { useDateLocale } from '@/hooks/use-date-locale'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Badge } from '@/components/ui/badge'
@@ -35,16 +34,9 @@ export function DocumentList({ vehicleId, documents }: Props) {
 function DocumentCard({ doc, vehicleId }: { doc: Document; vehicleId: string }) {
   const t = useTranslations()
   const { toast } = useToast()
-  const dateLocale = useDateLocale()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [loading, setLoading] = useState<'view' | 'download' | null>(null)
   const deleteMutation = useDeleteDocument(vehicleId)
-
-  const isExpired = doc.expiresAt && new Date(doc.expiresAt) < new Date()
-  const expiresSoon =
-    doc.expiresAt &&
-    !isExpired &&
-    new Date(doc.expiresAt) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
 
   async function handleOpen(download: boolean) {
     setLoading(download ? 'download' : 'view')
@@ -71,16 +63,8 @@ function DocumentCard({ doc, vehicleId }: { doc: Document; vehicleId: string }) 
       <li
         className="rounded-lg px-4 py-3 border"
         style={{
-          backgroundColor: isExpired
-            ? 'color-mix(in srgb, var(--danger) 6%, var(--surface-raised))'
-            : expiresSoon
-              ? 'color-mix(in srgb, #f59e0b 6%, var(--surface-raised))'
-              : 'var(--surface-raised)',
-          borderColor: isExpired
-            ? 'color-mix(in srgb, var(--danger) 40%, transparent)'
-            : expiresSoon
-              ? 'color-mix(in srgb, #f59e0b 40%, transparent)'
-              : 'var(--border)',
+          backgroundColor: 'var(--surface-raised)',
+          borderColor: 'var(--border)',
         }}
       >
         <div className="flex items-start justify-between gap-3">
@@ -88,14 +72,7 @@ function DocumentCard({ doc, vehicleId }: { doc: Document; vehicleId: string }) 
             <div className="flex items-center gap-2 flex-wrap">
               <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{doc.label}</p>
               <Badge variant="muted">{t(`documentType.${doc.type}`)}</Badge>
-              {isExpired && <Badge variant="danger">{t('documents.expired')}</Badge>}
-              {expiresSoon && <Badge variant="warn">{t('documents.expiresSoon')}</Badge>}
             </div>
-            {doc.expiresAt && (
-              <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                {t('documents.expiresAt')}: {new Date(doc.expiresAt).toLocaleDateString(dateLocale)}
-              </p>
-            )}
           </div>
           <div className="flex items-center gap-1 shrink-0">
             <Button

@@ -87,12 +87,14 @@ export interface VehicleOverview {
 export interface ServiceRecord {
   id: string;
   vehicleId: string;
-  type: string;
+  types: string[];
+  customType: string | null;
   mileage: number;
   date: string;
   description: string | null;
   cost: string | null;
   shop: string | null;
+  documents?: Document[];
   createdAt: string;
 }
 
@@ -103,6 +105,10 @@ export interface Expense {
   amount: string;
   date: string;
   description: string | null;
+  litres: string | null;
+  customCategory: string | null;
+  recurringMonths: number | null;
+  documents: Document[];
   createdAt: string;
 }
 
@@ -130,11 +136,12 @@ export interface Reminder {
 export interface Document {
   id: string;
   vehicleId: string;
+  serviceRecordId: string | null;
+  expenseId: string | null;
   type: string;
   label: string;
   fileUrl: string;
   fileSizeBytes: number | null;
-  expiresAt: string | null;
   createdAt: string;
 }
 
@@ -264,12 +271,12 @@ export const serviceRecords = {
   list: (vehicleId: string, page = 1, limit = 20) =>
     request<Paginated<ServiceRecord>>(`/vehicles/${vehicleId}/service-records?page=${page}&limit=${limit}`),
   create: (vehicleId: string, dto: {
-    type: string; mileage: number; date: string;
-    description?: string; cost?: number; shop?: string;
+    types: string[]; customType?: string; mileage: number; date: string;
+    description?: string; cost?: number; shop?: string; documentIds?: string[];
   }) => request<ServiceRecord>(`/vehicles/${vehicleId}/service-records`, { method: 'POST', body: JSON.stringify(dto) }),
   update: (id: string, dto: Partial<{
-    type: string; mileage: number; date: string;
-    description: string | null; cost: number | null; shop: string | null;
+    types: string[]; customType: string | null; mileage: number; date: string;
+    description: string | null; cost: number | null; shop: string | null; documentIds: string[];
   }>) => request<ServiceRecord>(`/service-records/${id}`, { method: 'PATCH', body: JSON.stringify(dto) }),
   delete: (id: string) => request<void>(`/service-records/${id}`, { method: 'DELETE' }),
   undelete: (id: string) => request<void>(`/service-records/${id}/undelete`, { method: 'POST' }),
@@ -282,9 +289,11 @@ export const expenses = {
     request<Paginated<Expense>>(`/vehicles/${vehicleId}/expenses?page=${page}&limit=${limit}`),
   create: (vehicleId: string, dto: {
     category: string; amount: number; date: string; description?: string;
+    litres?: number; customCategory?: string; recurringMonths?: number; documentIds?: string[];
   }) => request<Expense>(`/vehicles/${vehicleId}/expenses`, { method: 'POST', body: JSON.stringify(dto) }),
   update: (id: string, dto: Partial<{
     category: string; amount: number; date: string; description: string | null;
+    litres: number | null; customCategory: string | null; recurringMonths: number | null; documentIds: string[];
   }>) => request<Expense>(`/expenses/${id}`, { method: 'PATCH', body: JSON.stringify(dto) }),
   delete: (id: string) => request<void>(`/expenses/${id}`, { method: 'DELETE' }),
   undelete: (id: string) => request<void>(`/expenses/${id}/undelete`, { method: 'POST' }),
@@ -327,12 +336,14 @@ export const documents = {
   getLink: (id: string) =>
     request<{ url: string }>(`/documents/${id}/link`),
   delete: (id: string) => request<void>(`/documents/${id}`, { method: 'DELETE' }),
-  upload: async (vehicleId: string, file: { uri: string; name: string; type: string; label: string; docType: string }) => {
+  upload: async (vehicleId: string, file: { uri: string; name: string; type: string; label: string; docType: string; serviceRecordId?: string; expenseId?: string }) => {
     const token = await getToken();
     const form = new FormData();
     form.append('file', { uri: file.uri, name: file.name, type: file.type } as any);
     form.append('label', file.label);
     form.append('type', file.docType);
+    if (file.serviceRecordId) form.append('serviceRecordId', file.serviceRecordId);
+    if (file.expenseId) form.append('expenseId', file.expenseId);
     const res = await fetch(`${BASE_URL}/vehicles/${vehicleId}/documents`, {
       method: 'POST',
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },

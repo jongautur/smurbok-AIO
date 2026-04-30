@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
-import { IsDateString, IsEnum, IsOptional, IsString, MaxLength } from 'class-validator'
+import { IsEnum, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator'
 import { DocumentType } from '@prisma/client'
 
 export class CreateDocumentDto {
@@ -12,8 +12,13 @@ export class CreateDocumentDto {
   @MaxLength(200)
   label: string
 
-  @ApiPropertyOptional({ example: '2027-01-01' })
+  @ApiPropertyOptional()
   @IsOptional()
-  @IsDateString()
-  expiresAt?: string
+  @IsUUID()
+  serviceRecordId?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  expenseId?: string
 }

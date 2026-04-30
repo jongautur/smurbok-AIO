@@ -1,4 +1,4 @@
-import { IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsPositive, IsString, IsUUID, MaxLength, Min } from 'class-validator'
+import { IsArray, IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsPositive, IsString, IsUUID, MaxLength, Min } from 'class-validator'
 import { ExpenseCategory } from '@prisma/client'
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 
@@ -50,4 +50,10 @@ export class CreateExpenseDto {
   @IsOptional()
   @IsUUID()
   costCenterId?: string
+
+  @ApiPropertyOptional({ type: [String], description: 'Existing document IDs to link to this expense' })
+  @IsOptional()
+  @IsArray()
+  @IsUUID(undefined, { each: true })
+  documentIds?: string[]
 }

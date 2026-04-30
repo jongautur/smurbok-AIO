@@ -9,7 +9,7 @@
 ## Upload flow
 ```
 POST /api/vehicles/:id/documents
-  multipart/form-data: file + { type, label, expiresAt? }
+  multipart/form-data: file + { type, label, serviceRecordId?, expenseId? }
   → validate mime type + size
   → write to disk at uploads/<userId>/<vehicleId>/<uuid>.<ext>
   → INSERT Document row with relative fileUrl
@@ -33,10 +33,11 @@ POST /api/vehicles/:id/documents
 Document {
   id          uuid
   vehicleId   uuid → Vehicle
+  serviceRecordId uuid? → ServiceRecord
+  expenseId   uuid? → Expense
   type        DocumentType enum
   label       string          ← user-facing name
   fileUrl     string          ← relative storage path
-  expiresAt   DateTime?       ← for insurance, registration etc.
   createdAt   DateTime
   updatedAt   DateTime
 }

@@ -6,6 +6,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   Min,
 } from 'class-validator';
@@ -50,4 +51,10 @@ export class CreateServiceRecordDto {
   @IsString()
   @MaxLength(200)
   shop?: string;
+
+  @ApiPropertyOptional({ type: [String], description: 'Existing document IDs to link to this service record' })
+  @IsOptional()
+  @IsArray()
+  @IsUUID(undefined, { each: true })
+  documentIds?: string[];
 }

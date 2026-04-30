@@ -12,6 +12,7 @@ import { useDateLocale } from '@/hooks/use-date-locale'
 import { Modal, Field, inputCls } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { ExpenseCategorySelector } from './expense-category-selector'
+import { DocumentLinkSelector } from './document-link-selector'
 import type { ExpenseCategory } from '@/types'
 
 const schema = z.object({
@@ -42,6 +43,7 @@ export function AddExpenseForm({ vehicleId, onClose, onSuccess }: Props) {
   const [category, setCategory] = useState<ExpenseCategory>('FUEL')
   const [customCategory, setCustomCategory] = useState('')
   const [recurring, setRecurring] = useState(false)
+  const [documentIds, setDocumentIds] = useState<string[]>([])
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -56,9 +58,10 @@ export function AddExpenseForm({ vehicleId, onClose, onSuccess }: Props) {
         customCategory: category === 'OTHER' && customCategory.trim() ? customCategory.trim() : undefined,
         recurringMonths: recurring ? (d.recurringMonths ?? 1) : undefined,
         litres: category === 'FUEL' ? d.litres : undefined,
+        documentIds,
       },
       {
-        onSuccess: () => {
+        onSuccess: (expense) => {
           const file = fileRef.current?.files?.[0]
           if (file) {
             const label = `${category === 'OTHER' && customCategory.trim() ? customCategory.trim() : t(`expenseCategory.${category}`)} - ${new Date(d.date).toLocaleDateString(dateLocale)}`
@@ -66,6 +69,7 @@ export function AddExpenseForm({ vehicleId, onClose, onSuccess }: Props) {
             formData.append('file', file)
             formData.append('type', 'RECEIPT')
             formData.append('label', label)
+            formData.append('expenseId', expense.id)
             uploadMutation.mutate(formData, {
               onSuccess: () => { toast(t('common.saveSuccess')); onSuccess() },
               onError: () => { toast(t('common.saveSuccess')); onSuccess() },
@@ -148,6 +152,10 @@ export function AddExpenseForm({ vehicleId, onClose, onSuccess }: Props) {
             />
           </Field>
         )}
+
+        <Field label={t('documents.linkExisting')}>
+          <DocumentLinkSelector vehicleId={vehicleId} selectedIds={documentIds} onChange={setDocumentIds} />
+        </Field>
 
         <Field label={t('documents.attachFile')}>
           <input

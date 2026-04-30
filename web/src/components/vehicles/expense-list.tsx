@@ -11,6 +11,7 @@ import { EditExpenseForm } from './edit-expense-form'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Badge } from '@/components/ui/badge'
+import { LinkedDocuments } from './linked-documents'
 import type { Expense } from '@/types'
 
 interface Props {
@@ -84,6 +85,7 @@ function ExpenseCard({ expense, vehicleId }: { expense: Expense; vehicleId: stri
               {expense.litres != null && <span>· {Number(expense.litres).toLocaleString()} L</span>}
               {expense.description && <span>· {expense.description}</span>}
             </div>
+            <LinkedDocuments documents={expense.documents} />
           </div>
           <div className="flex items-center gap-0.5 shrink-0">
             <button
@@ -122,6 +124,7 @@ function ExpenseCard({ expense, vehicleId }: { expense: Expense; vehicleId: stri
             litres: expense.litres,
             customCategory: expense.customCategory,
             recurringMonths: expense.recurringMonths,
+            documents: expense.documents,
           }}
           onClose={() => setEditOpen(false)}
           onSuccess={() => setEditOpen(false)}

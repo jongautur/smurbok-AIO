@@ -85,14 +85,18 @@
     "estAbbrev": "Áætl."
   },
   "serviceRecords": {
-    "title": "Þjónustufærslur",
+    "title": "Þjónusta",
     "add": "Skrá þjónustu",
-    "edit": "Breyta þjónustufærslu",
-    "empty": "Engar þjónustufærslur",
+    "edit": "Breyta þjónustu",
+    "empty": "Engin þjónusta skráð",
     "typeLabel": "Tegund þjónustu",
+    "selectTypes": "Bæta við þjónustu",
+    "otherPlaceholder": "Nafn þjónustu…",
     "mileageLabel": "Kílómetrar (km)",
     "dateLabel": "Dagsetning",
     "shopLabel": "Verkstæði (valfrjálst)",
+    "inspectionStation": "Skoðunarstöð",
+    "inspectionStationPlaceholder": "Veldu skoðunarstöð…",
     "costLabel": "Kostnaður í kr (valfrjálst)",
     "notesLabel": "Athugasemdir (valfrjálst)",
     "save": "Vista þjónustufærslu",
@@ -107,6 +111,12 @@
     "amountLabel": "Upphæð (kr)",
     "dateLabel": "Dagsetning",
     "descriptionLabel": "Lýsing (valfrjálst)",
+    "litresLabel": "Lítrar (valfrjálst)",
+    "customCategoryPlaceholder": "Nafn flokks…",
+    "recurring": "Reglubundið",
+    "recurringHint": "T.d. mánaðarleg áskrift eða fast gjald",
+    "recurringMonths": "Endurtaka á (mánuðum)",
+    "recurringMonthsPlaceholder": "t.d. 1 fyrir mánaðarlega",
     "save": "Vista útgjöld",
     "saveEdit": "Vista breytingar"
   },
@@ -159,13 +169,14 @@
     "SNOOZED": "Frestað"
   },
   "expenseCategory": {
-    "FUEL": "Bensín",
+    "FUEL": "Eldsneyti",
     "SERVICE": "Þjónusta",
     "INSURANCE": "Trygging",
     "TAX": "Gjald",
     "PARKING": "Bílastæði",
-    "TOLL": "Veggjald",
+    "TOLL": "Kílómetragjald",
     "REPAIR": "Viðgerð",
+    "THRIF": "Þrif",
     "OTHER": "Annað"
   },
   "fuelType": {
@@ -178,26 +189,50 @@
   },
   "serviceType": {
     "OIL_CHANGE": "Olíuskipti",
+    "ENGINE_OIL_CHANGE": "Vélaolíuskipti",
+    "TRANSMISSION_OIL_CHANGE": "Gírkassaolíuskipti",
     "TIRE_ROTATION": "Dekkjasnúningur",
     "TIRE_CHANGE": "Dekkjaskipti",
     "BRAKE_SERVICE": "Bremsur",
+    "BRAKE_DISCS": "Bremsudisar",
+    "BRAKE_PADS": "Bremsuklossar",
+    "BRAKE_BANDS": "Bremsuborðar",
+    "HANDBRAKE": "Handbremsa",
     "FILTER_CHANGE": "Síuskipti",
+    "OIL_FILTER": "Olíusía",
+    "FUEL_FILTER": "Eldsneyissía",
+    "TRANSMISSION_FILTER": "Sjálfskiptisía",
+    "AIR_FILTER": "Loftsía",
+    "CABIN_FILTER": "Þjókornasía",
     "INSPECTION": "Skoðun",
+    "MAIN_INSPECTION": "Aðalskoðun",
+    "RE_INSPECTION": "Endurskoðun",
     "TRANSMISSION_SERVICE": "Gírkassi",
     "COOLANT_FLUSH": "Kælivökvi",
     "BATTERY_REPLACEMENT": "Rafhlöðuskipti",
     "WINDSHIELD": "Framrúða",
+    "WINDSHIELD_REPAIR": "Lagfæring framrúðu",
+    "WINDSHIELD_REPLACEMENT": "Framrúðuskipti",
     "OTHER": "Annað"
+  },
+  "serviceCategory": {
+    "OIL": "Olíuskipti",
+    "TIRES": "Dekkjamál",
+    "FILTER_GROUP": "Síuskipti",
+    "BRAKE_GROUP": "Bremsur",
+    "INSPECTION_GROUP": "Skoðun",
+    "WINDSHIELD_GROUP": "Framrúða"
   },
   "documents": {
     "title": "Skjöl",
     "upload": "Hlaða upp skjali",
     "nameLabel": "Heiti",
     "empty": "Engin skjöl hlaðin upp",
-    "expired": "Útrunnið",
-    "expiresSoon": "Rennur fljótlega út",
     "view": "Skoða",
-    "attach": "Hengja við skjal (valkvætt)"
+    "download": "Hlaða niður",
+    "attach": "Hengja við skjal (valkvætt)",
+    "linkExisting": "Tengja núverandi skjöl",
+    "noExisting": "Engin upphlaðin skjöl til að tengja"
   },
   "documentType": {
     "INSURANCE": "Trygging",
@@ -250,6 +285,7 @@
     "enterModel": "Sláðu inn módel",
     "enterLicensePlate": "Sláðu inn skráningarnúmer",
     "failedToSave": "Tókst ekki að vista",
-    "failedToLoad": "Tókst ekki að hlaða"
+    "failedToLoad": "Tókst ekki að hlaða",
+    "selectServiceType": "Veldu að minnsta kosti eina þjónustu"
   }
 }

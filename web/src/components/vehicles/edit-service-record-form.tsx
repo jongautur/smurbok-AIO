@@ -10,6 +10,7 @@ import { useToast } from '@/providers/toast-provider'
 import { Modal, Field, inputCls } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { ServiceTypeSelector, type ServiceEntry } from './service-type-selector'
+import { DocumentLinkSelector } from './document-link-selector'
 import type { ServiceRecord } from '@/types'
 
 const INSPECTION_TYPES = ['INSPECTION', 'MAIN_INSPECTION', 'RE_INSPECTION']
@@ -27,7 +28,7 @@ type FormValues = z.infer<typeof schema>
 
 interface Props {
   vehicleId: string
-  record: Pick<ServiceRecord, 'id' | 'types' | 'customType' | 'mileage' | 'date' | 'cost' | 'shop' | 'description'>
+  record: Pick<ServiceRecord, 'id' | 'types' | 'customType' | 'mileage' | 'date' | 'cost' | 'shop' | 'description' | 'documents'>
   onClose: () => void
   onSuccess: () => void
 }
@@ -42,6 +43,7 @@ export function EditServiceRecordForm({ vehicleId, record, onClose, onSuccess }:
   )
 
   const [services, setServices] = useState<ServiceEntry[]>(initialServices)
+  const [documentIds, setDocumentIds] = useState<string[]>(record.documents.map((doc) => doc.id))
   const [servicesError, setServicesError] = useState<string | undefined>()
   const [stationError, setStationError] = useState<string | undefined>()
 
@@ -75,7 +77,7 @@ export function EditServiceRecordForm({ vehicleId, record, onClose, onSuccess }:
     const types = services.map((s) => s.type)
     const customType = services.find((s) => s.type === 'OTHER')?.customName
 
-    mutation.mutate({ id: record.id, types, customType, ...d }, {
+    mutation.mutate({ id: record.id, types, customType, documentIds, ...d }, {
       onSuccess: () => { toast(t('common.saveSuccess')); onSuccess() },
       onError: () => toast(t('common.error'), 'error'),
     })
@@ -127,6 +129,10 @@ export function EditServiceRecordForm({ vehicleId, record, onClose, onSuccess }:
 
         <Field label={t('serviceRecords.description')} error={errors.description?.message}>
           <textarea {...register('description')} rows={2} className={inputCls} />
+        </Field>
+
+        <Field label={t('documents.linkExisting')}>
+          <DocumentLinkSelector vehicleId={vehicleId} selectedIds={documentIds} onChange={setDocumentIds} />
         </Field>
 
         {mutation.error && <p className="text-sm" style={{ color: 'var(--danger)' }}>{t('common.error')}</p>}

@@ -310,7 +310,8 @@ export class AuthService {
         reminders: v.reminders,
         documents: v.documents.map((d) => ({
           id: d.id, label: d.label, type: d.type,
-          expiresAt: d.expiresAt, createdAt: d.createdAt,
+          serviceRecordId: d.serviceRecordId, expenseId: d.expenseId,
+          createdAt: d.createdAt,
           file: `documents/${path.basename(d.fileUrl)}`,
         })),
       })),

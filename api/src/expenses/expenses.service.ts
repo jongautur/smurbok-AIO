@@ -1,10 +1,22 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 import { AuditLogService } from '../audit-log/audit-log.service'
 import { VehicleAuthzService } from '../authz/vehicle-authz.service'
 import { CreateExpenseDto } from './dto/create-expense.dto'
 import { UpdateExpenseDto } from './dto/update-expense.dto'
 import { paginate, type Paginated } from '../common/dto/pagination.dto'
+
+const LINKED_DOCUMENT_SELECT = {
+  id: true,
+  vehicleId: true,
+  serviceRecordId: true,
+  expenseId: true,
+  type: true,
+  label: true,
+  fileUrl: true,
+  fileSizeBytes: true,
+  createdAt: true,
+} as const
 
 @Injectable()
 export class ExpensesService {
@@ -19,7 +31,19 @@ export class ExpensesService {
     const skip = (page - 1) * limit
     const where = { vehicleId }
     const [expenses, total] = await this.prisma.$transaction([
-      this.prisma.expense.findMany({ where, orderBy: { date: 'desc' }, skip, take: limit }),
+      this.prisma.expense.findMany({
+        where,
+        include: {
+          documents: {
+            where: { deletedAt: null },
+            select: LINKED_DOCUMENT_SELECT,
+            orderBy: { createdAt: 'desc' },
+          },
+        },
+        orderBy: { date: 'desc' },
+        skip,
+        take: limit,
+      }),
       this.prisma.expense.count({ where }),
     ])
     return paginate(expenses.map((e) => this.toResponse(e)), total, page, limit)
@@ -27,6 +51,7 @@ export class ExpensesService {
 
   async create(vehicleId: string, userId: string, dto: CreateExpenseDto) {
     await this.vehicleAuthz.requireEdit(vehicleId, userId)
+    await this.assertDocumentsBelongToVehicle(vehicleId, dto.documentIds)
     const date = new Date(dto.date)
     const expense = await this.prisma.expense.create({
       data: {
@@ -41,23 +66,39 @@ export class ExpensesService {
         costCenterId: dto.costCenterId,
       },
     })
+    await this.syncLinkedDocuments(vehicleId, expense.id, dto.documentIds)
     if (dto.mileage !== undefined) {
       await this.syncMileageLog(vehicleId, dto.mileage, date)
     }
     this.audit.log(userId, 'CREATE', 'EXPENSE', expense.id)
-    return this.toResponse(expense)
+    return this.findExpenseForResponse(expense.id)
   }
 
   async update(id: string, userId: string, dto: UpdateExpenseDto) {
     const existing = await this.prisma.expense.findUnique({ where: { id } })
     if (!existing) throw new NotFoundException('Expense not found')
     await this.vehicleAuthz.requireEdit(existing.vehicleId, userId)
+    if (dto.documentIds !== undefined) {
+      await this.assertDocumentsBelongToVehicle(existing.vehicleId, dto.documentIds)
+    }
     const expense = await this.prisma.expense.update({
       where: { id },
-      data: { ...dto, date: dto.date ? new Date(dto.date) : undefined },
+      data: {
+        category: dto.category,
+        amount: dto.amount,
+        date: dto.date ? new Date(dto.date) : undefined,
+        description: dto.description,
+        litres: dto.litres,
+        customCategory: dto.customCategory,
+        recurringMonths: dto.recurringMonths,
+        costCenterId: dto.costCenterId,
+      },
     })
+    if (dto.documentIds !== undefined) {
+      await this.syncLinkedDocuments(existing.vehicleId, id, dto.documentIds)
+    }
     this.audit.log(userId, 'UPDATE', 'EXPENSE', id)
-    return this.toResponse(expense)
+    return this.findExpenseForResponse(expense.id)
   }
 
   async remove(id: string, userId: string) {
@@ -91,6 +132,54 @@ export class ExpensesService {
     })
   }
 
+  private async syncLinkedDocuments(vehicleId: string, expenseId: string, documentIds?: string[]) {
+    if (documentIds === undefined) return
+
+    const uniqueIds = await this.assertDocumentsBelongToVehicle(vehicleId, documentIds)
+
+    await this.prisma.$transaction([
+      this.prisma.document.updateMany({
+        where: { expenseId, vehicleId, id: { notIn: uniqueIds } },
+        data: { expenseId: null },
+      }),
+      ...(uniqueIds.length
+        ? [
+            this.prisma.document.updateMany({
+              where: { id: { in: uniqueIds }, vehicleId, deletedAt: null },
+              data: { expenseId },
+            }),
+          ]
+        : []),
+    ])
+  }
+
+  private async assertDocumentsBelongToVehicle(vehicleId: string, documentIds?: string[]) {
+    const uniqueIds = Array.from(new Set(documentIds ?? []))
+    if (uniqueIds.length > 0) {
+      const count = await this.prisma.document.count({
+        where: { id: { in: uniqueIds }, vehicleId, deletedAt: null },
+      })
+      if (count !== uniqueIds.length) {
+        throw new BadRequestException('One or more documents do not belong to this vehicle')
+      }
+    }
+    return uniqueIds
+  }
+
+  private async findExpenseForResponse(id: string) {
+    const expense = await this.prisma.expense.findUniqueOrThrow({
+      where: { id },
+      include: {
+        documents: {
+          where: { deletedAt: null },
+          select: LINKED_DOCUMENT_SELECT,
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    })
+    return this.toResponse(expense)
+  }
+
   private toResponse(expense: any) {
     return {
       id: expense.id,
@@ -102,6 +191,7 @@ export class ExpensesService {
       litres: expense.litres,
       customCategory: expense.customCategory,
       recurringMonths: expense.recurringMonths,
+      documents: expense.documents ?? [],
       createdAt: expense.createdAt,
     }
   }

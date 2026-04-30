@@ -32,6 +32,18 @@ const ALLOWED_MIME_TYPES = new Set([
   'application/pdf',
 ])
 
+const DOCUMENT_SELECT = {
+  id: true,
+  vehicleId: true,
+  serviceRecordId: true,
+  expenseId: true,
+  type: true,
+  label: true,
+  fileUrl: true,
+  fileSizeBytes: true,
+  createdAt: true,
+} as const
+
 function signingSecret(): string {
   const s = process.env.FILE_SIGNING_SECRET
   if (!s) throw new Error('FILE_SIGNING_SECRET is not set')
@@ -52,9 +64,8 @@ export class DocumentsService {
     await this.vehicleAuthz.requireView(vehicleId, userId)
     const skip = (page - 1) * limit
     const where = { vehicleId }
-    const select = { id: true, vehicleId: true, type: true, label: true, fileUrl: true, fileSizeBytes: true, expiresAt: true, createdAt: true }
     const [docs, total] = await this.prisma.$transaction([
-      this.prisma.document.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take: limit, select }),
+      this.prisma.document.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take: limit, select: DOCUMENT_SELECT }),
       this.prisma.document.count({ where }),
     ])
     return paginate(docs, total, page, limit)
@@ -67,6 +78,7 @@ export class DocumentsService {
     file: Express.Multer.File,
   ) {
     await this.vehicleAuthz.requireEdit(vehicleId, userId)
+    const linkData = await this.resolveLinkData(vehicleId, dto.serviceRecordId, dto.expenseId)
 
     // Enforce storage limits before doing any work
     await Promise.all([
@@ -118,18 +130,9 @@ export class DocumentsService {
         label: dto.label,
         fileUrl,
         fileSizeBytes: finalBuffer.length,
-        expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
+        ...linkData,
       },
-      select: {
-        id: true,
-        vehicleId: true,
-        type: true,
-        label: true,
-        fileUrl: true,
-        fileSizeBytes: true,
-        expiresAt: true,
-        createdAt: true,
-      },
+      select: DOCUMENT_SELECT,
     })
   }
 
@@ -182,6 +185,30 @@ export class DocumentsService {
     if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath)
 
     await this.prisma.document.delete({ where: { id } })
+  }
+
+  private async resolveLinkData(vehicleId: string, serviceRecordId?: string, expenseId?: string) {
+    const linkData: { serviceRecordId?: string; expenseId?: string } = {}
+
+    if (serviceRecordId) {
+      const record = await this.prisma.serviceRecord.findFirst({
+        where: { id: serviceRecordId, vehicleId, deletedAt: null },
+        select: { id: true },
+      })
+      if (!record) throw new BadRequestException('Service record does not belong to this vehicle')
+      linkData.serviceRecordId = serviceRecordId
+    }
+
+    if (expenseId) {
+      const expense = await this.prisma.expense.findFirst({
+        where: { id: expenseId, vehicleId, deletedAt: null },
+        select: { id: true },
+      })
+      if (!expense) throw new BadRequestException('Expense does not belong to this vehicle')
+      linkData.expenseId = expenseId
+    }
+
+    return linkData
   }
 
   private async optimizePdf(buffer: Buffer, dir: string): Promise<Buffer> {

@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import { FuelType } from '@prisma/client'
-import { IsEnum, IsInt, IsOptional, IsString, Length, Max, Min } from 'class-validator'
+import { IsEnum, IsInt, IsOptional, IsString, Length, Matches, Max, Min } from 'class-validator'
+import { Transform } from 'class-transformer'
 
 export class CreateOrgVehicleDto {
   @ApiProperty({ example: 'Toyota' })
@@ -24,10 +25,11 @@ export class CreateOrgVehicleDto {
   @Length(1, 20)
   licensePlate: string
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: '17-char VIN (ISO 3779) — letters I, O, Q not allowed' })
   @IsOptional()
   @IsString()
-  @Length(17, 17)
+  @Matches(/^[A-HJ-NPR-Z0-9]{17}$/i, { message: 'VIN must be 17 characters (A–H, J–N, P–R, S–Z, 0–9)' })
+  @Transform(({ value }) => (typeof value === 'string' ? value.toUpperCase() : value))
   vin?: string
 
   @ApiPropertyOptional()

@@ -12,6 +12,7 @@ import { EditExpenseForm } from '@/components/vehicles/edit-expense-form'
 import { useDeleteServiceRecord, useDeleteExpense } from '@/hooks/use-vehicle'
 import { useDeleteMileageLog } from '@/hooks/use-mileage-logs'
 import { useToast } from '@/providers/toast-provider'
+import { LinkedDocuments } from '@/components/vehicles/linked-documents'
 
 const TYPE_ICON: Record<TimelineEntry['entryType'], React.ReactNode> = {
   SERVICE: <Wrench size={16} />,
@@ -169,6 +170,7 @@ function TimelineCard({ entry, vehicleId }: { entry: TimelineEntry; vehicleId?: 
                 <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>· {entry.note}</p>
               )}
             </div>
+            {'documents' in entry && <LinkedDocuments documents={entry.documents} />}
           </div>
         </div>
       </li>
@@ -185,6 +187,7 @@ function TimelineCard({ entry, vehicleId }: { entry: TimelineEntry; vehicleId?: 
             cost: entry.cost,
             shop: entry.shop,
             description: entry.description,
+            documents: entry.documents,
           }}
           onClose={() => setEditOpen(false)}
           onSuccess={() => setEditOpen(false)}
@@ -203,6 +206,7 @@ function TimelineCard({ entry, vehicleId }: { entry: TimelineEntry; vehicleId?: 
             litres: entry.litres ?? null,
             customCategory: entry.customCategory ?? null,
             recurringMonths: entry.recurringMonths,
+            documents: entry.documents,
           }}
           onClose={() => setEditOpen(false)}
           onSuccess={() => setEditOpen(false)}

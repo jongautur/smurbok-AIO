@@ -75,19 +75,19 @@
   "home": {
     "signIn": "Innskrá",
     "heroTitle": "Ökutækin þín, á einum stað",
-    "heroBody": "Smurbók er persónulegt ökutækjabók. Skráðu þjónustu, útgjöld, kílómetra, áminningar og skjöl fyrir hvert ökutæki sem þú átt — einfaldlega og örugglega.",
+    "heroBody": "Smurbók er persónuleg ökutækjahandbók. Skráðu þjónustur, útgjöld, kílómetra og skjöl fyrir hvert ökutæki sem þú átt — einfaldlega og örugglega.",
     "getStarted": "Byrjaðu hér",
     "tryDemo": "Sýnishorn",
-    "feature1Title": "Þjónustufærslur",
+    "feature1Title": "Þjónusta",
     "feature1Body": "Skráðu hverja olíuskipti, dekkaskipti og viðgerð með dagsetningu, kílómetrum og kostnaði.",
     "feature2Title": "Áminningar",
-    "feature2Body": "Gleymdu aldrei skoðun eða tryggingaendurnýjun með gjalddaga- og kílómetráminningum.",
+    "feature2Body": "Með smurbók geturðu fengið áminningar um skoðun, olíuskipti, dekkaskipti og mark fleirra í tölvupóst eða með appinu.",
     "feature3Title": "Skjöl",
-    "feature3Body": "Geymdu tryggingaskírteini, skráningar og kvittanir á einum öruggum stað."
+    "feature3Body": "Geymdu skoðunarvottorð, myndir og kvittanir á einum öruggum stað."
   },
   "demo": {
     "banner": "Sýnihamur — breytingar eru ekki vistaðar.",
-    "createAccount": "Búa til reikning frítt",
+    "createAccount": "Stofna smurbók",
     "demoMode": "Sýni"
   },
   "auth": {
@@ -102,7 +102,7 @@
     "weakPassword": "Lykilorð verður að vera að minnsta kosti 6 stafir",
     "passwordMismatch": "Lykilorðin stemma ekki",
     "signup": "Nýskrá",
-    "createAccount": "Búa til reikning",
+    "createAccount": "Stofna smurbók",
     "signupWithGoogle": "Nýskrá með Google",
     "name": "Nafn",
     "namePlaceholder": "Nafnið þitt",
@@ -127,7 +127,7 @@
   "dashboard": {
     "title": "Yfirlit",
     "vehicles": "Ökutæki",
-    "serviceRecords": "Þjónustufærslur",
+    "serviceRecords": "Þjónusta",
     "pendingReminders": "Áminningar",
     "overdue": "Komið yfir tíma",
     "recentActivity": "Nýleg virkni",
@@ -140,7 +140,7 @@
     "title": "Ökutækin mín",
     "add": "Bæta við ökutæki",
     "edit": "Breyta ökutæki",
-    "empty": "Ekkert ökutæki skráð enn",
+    "empty": "Ekkert ökutæki skráð",
     "make": "Framleiðandi",
     "model": "Módel",
     "year": "Árgerð",
@@ -154,7 +154,7 @@
     "timeline": "Saga",
     "lastService": "Síðasta þjónusta",
     "noServiceYet": "Engin þjónusta skráð",
-    "archive": "Geyma",
+    "archive": "Geymsla",
     "archived": "Geymt",
     "restore": "Endurheimta",
     "showArchived": "Sýna geymd",
@@ -269,15 +269,14 @@
     "type": "Tegund",
     "label": "Heiti",
     "labelPlaceholder": "t.d. Trygging 2026",
-    "expiresAt": "Gildir til",
     "file": "Skjal",
     "fileHint": "PDF, JPG eða PNG — hámark 10 MB",
     "fileRequired": "Veldu skjal",
     "attachFile": "Hengja við skjal (valfrjálst)",
+    "linkExisting": "Tengja núverandi skjöl",
+    "noExisting": "Engin upphlaðin skjöl til að tengja",
     "view": "Skoða",
-    "download": "Hlaða niður",
-    "expired": "Útrunnið",
-    "expiresSoon": "Rennur fljótlega út"
+    "download": "Hlaða niður"
   },
   "documentType": {
     "INSURANCE": "Trygging",
