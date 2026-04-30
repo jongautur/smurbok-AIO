@@ -10,19 +10,20 @@ import { copy, reminderTypeLabels, stageLabels, type Lang } from '../mail/templa
 
 const DEFAULT_KM_PER_YEAR = 15_000
 const DEFAULT_KM_PER_DAY = DEFAULT_KM_PER_YEAR / 365
-const MIN_DAYS_FOR_RATE = 30 // need at least 30 days of history to trust the rate
+const MIN_DAYS_FOR_RATE = 30
 
+type StageFlag = 'notifiedStage1' | 'notifiedStage2' | 'notifiedStage3'
 
-interface StageConfig {
-  daysOffset: number
-  flag: 'notified14Days' | 'notified7Days' | 'notifiedDueDate'
-  label: string
-}
+const DATE_STAGES: { daysOffset: number; flag: StageFlag }[] = [
+  { daysOffset: 14, flag: 'notifiedStage1' },
+  { daysOffset: 7,  flag: 'notifiedStage2' },
+  { daysOffset: 0,  flag: 'notifiedStage3' },
+]
 
-const STAGES: StageConfig[] = [
-  { daysOffset: 14, flag: 'notified14Days', label: 'due in 14 days' },
-  { daysOffset: 7,  flag: 'notified7Days',  label: 'due in 7 days' },
-  { daysOffset: 0,  flag: 'notifiedDueDate', label: 'due today' },
+const KM_STAGES: { kmBefore: number; flag: StageFlag }[] = [
+  { kmBefore: 1000, flag: 'notifiedStage1' },
+  { kmBefore: 500,  flag: 'notifiedStage2' },
+  { kmBefore: 100,  flag: 'notifiedStage3' },
 ]
 
 @Injectable()
@@ -60,96 +61,91 @@ export class NotificationsService {
       const user = reminder.vehicle.user
       if (!user?.email || !user.emailNotifications) continue
 
-      const effectiveDueDate = this.resolveEffectiveDueDate(reminder, reminder.vehicle.mileageLogs)
-      if (!effectiveDueDate) continue
-
-      for (const stage of STAGES) {
-        if (reminder[stage.flag]) continue // already sent
-
-        const triggerDate = new Date(effectiveDueDate)
-        triggerDate.setDate(triggerDate.getDate() - stage.daysOffset)
-
-        if (!this.isToday(triggerDate)) continue
-
-        const lang = (user.language ?? 'en') as Lang
-        const typeLabel = reminderTypeLabels[reminder.type]?.[lang] ?? reminder.type.replace(/_/g, ' ')
-        const stageLabel = stageLabels[stage.daysOffset][lang]
-        const subject = stage.daysOffset === 0
-          ? copy.reminder.subjectToday(lang, typeLabel, reminder.vehicle.licensePlate)
-          : copy.reminder.subjectDays(lang, stage.daysOffset, typeLabel, reminder.vehicle.licensePlate)
-
-        await this.mail.send(
-          user.email,
-          subject,
-          createElement(ReminderDueEmail, {
-            lang,
-            userName: user.displayName ?? user.email,
-            vehicleName: `${reminder.vehicle.make} ${reminder.vehicle.model} ${reminder.vehicle.year}`,
-            licensePlate: reminder.vehicle.licensePlate,
-            reminderType: typeLabel,
-            dueDate: effectiveDueDate.toISOString().split('T')[0],
-            dueMileage: reminder.dueMileage ?? undefined,
-            stage: stageLabel,
-            note: reminder.note ?? undefined,
-          }),
-        )
-
-        if (user.expoPushToken) {
-          await this.sendPush(
-            user.expoPushToken,
-            subject,
-            `${reminder.vehicle.make} ${reminder.vehicle.model} · ${reminder.vehicle.licensePlate}`,
-            { reminderId: reminder.id, vehicleId: reminder.vehicleId },
-          )
-        }
-
-        await this.prisma.reminder.update({
-          where: { id: reminder.id },
-          data: { [stage.flag]: true },
-        })
-
-        this.logger.log(`Sent reminder email (${stageLabel}) to ${user.email} for reminder ${reminder.id}`)
+      if (reminder.dueMileage !== null) {
+        await this.checkMileageStages(reminder, user)
+      } else if (reminder.dueDate !== null) {
+        await this.checkDateStages(reminder, user)
       }
+    }
+  }
+
+  private async checkDateStages(reminder: any, user: any) {
+    for (const stage of DATE_STAGES) {
+      if (reminder[stage.flag]) continue
+
+      const triggerDate = new Date(reminder.dueDate)
+      triggerDate.setDate(triggerDate.getDate() - stage.daysOffset)
+      if (!this.isToday(triggerDate)) continue
+
+      const lang = (user.language ?? 'en') as Lang
+      const typeLabel = reminderTypeLabels[reminder.type]?.[lang] ?? reminder.type.replace(/_/g, ' ')
+      const stageLabel = stageLabels[stage.daysOffset][lang]
+      const subject = stage.daysOffset === 0
+        ? copy.reminder.subjectToday(lang, typeLabel, reminder.vehicle.licensePlate)
+        : copy.reminder.subjectDays(lang, stage.daysOffset, typeLabel, reminder.vehicle.licensePlate)
+
+      await this.sendReminderNotification(user, reminder, subject, stageLabel, lang)
+      await this.prisma.reminder.update({ where: { id: reminder.id }, data: { [stage.flag]: true } })
+      this.logger.log(`Sent date reminder (${stageLabel}) to ${user.email} for reminder ${reminder.id}`)
+    }
+  }
+
+  private async checkMileageStages(reminder: any, user: any) {
+    const mileageLogs = reminder.vehicle.mileageLogs as { mileage: number; date: Date }[]
+    if (mileageLogs.length === 0) return
+
+    const estimatedMileage = this.estimateCurrentMileage(mileageLogs)
+    const kmRemaining = reminder.dueMileage - estimatedMileage
+
+    for (const stage of KM_STAGES) {
+      if (reminder[stage.flag]) continue
+      if (kmRemaining > stage.kmBefore) continue
+
+      const lang = (user.language ?? 'en') as Lang
+      const typeLabel = reminderTypeLabels[reminder.type]?.[lang] ?? reminder.type.replace(/_/g, ' ')
+      const kmLabel = kmRemaining <= 0
+        ? (lang === 'is' ? 'gjaldfallið' : 'overdue')
+        : `${Math.round(kmRemaining)} km`
+      const subject = `${typeLabel} · ${kmLabel} · ${reminder.vehicle.licensePlate}`
+
+      await this.sendReminderNotification(user, reminder, subject, kmLabel, lang)
+      await this.prisma.reminder.update({ where: { id: reminder.id }, data: { [stage.flag]: true } })
+      this.logger.log(`Sent mileage reminder (${kmLabel} remaining) to ${user.email} for reminder ${reminder.id}`)
+    }
+  }
+
+  private async sendReminderNotification(user: any, reminder: any, subject: string, stageLabel: string, lang: Lang) {
+    if (user.email && user.emailNotifications) {
+      await this.mail.send(
+        user.email,
+        subject,
+        createElement(ReminderDueEmail, {
+          lang,
+          userName: user.displayName ?? user.email,
+          vehicleName: `${reminder.vehicle.make} ${reminder.vehicle.model} ${reminder.vehicle.year}`,
+          licensePlate: reminder.vehicle.licensePlate,
+          reminderType: reminderTypeLabels[reminder.type]?.[lang] ?? reminder.type.replace(/_/g, ' '),
+          dueDate: reminder.dueDate?.toISOString().split('T')[0] ?? '',
+          dueMileage: reminder.dueMileage ?? undefined,
+          stage: stageLabel,
+          note: reminder.note ?? undefined,
+        }),
+      )
+    }
+
+    if (user.expoPushToken) {
+      await this.sendPush(
+        user.expoPushToken,
+        subject,
+        `${reminder.vehicle.make} ${reminder.vehicle.model} · ${reminder.vehicle.licensePlate}`,
+        { reminderId: reminder.id, vehicleId: reminder.vehicleId },
+      )
     }
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  /**
-   * Resolves the effective due date for a reminder.
-   * - If dueDate is set: use it
-   * - If dueMileage is set: estimate from mileage rate
-   * - If both: use whichever comes first
-   */
-  private resolveEffectiveDueDate(
-    reminder: { dueDate: Date | null; dueMileage: number | null },
-    mileageLogs: { mileage: number; date: Date }[],
-  ): Date | null {
-    const dates: Date[] = []
-
-    if (reminder.dueDate) {
-      dates.push(reminder.dueDate)
-    }
-
-    if (reminder.dueMileage !== null && mileageLogs.length > 0) {
-      const estimated = this.estimateDateForMileage(reminder.dueMileage, mileageLogs)
-      if (estimated) dates.push(estimated)
-    }
-
-    if (dates.length === 0) return null
-    return dates.sort((a, b) => a.getTime() - b.getTime())[0]
-  }
-
-  /**
-   * Estimates the calendar date when a vehicle will reach targetMileage.
-   * Projects from the estimated mileage TODAY (latest log + elapsed days × km/day rate),
-   * so the cron fires based on where we estimate the car is now — not from the log date.
-   * Falls back to 15,000 km/year if less than 30 days of history exists.
-   */
-  private estimateDateForMileage(
-    targetMileage: number,
-    mileageLogs: { mileage: number; date: Date }[],
-  ): Date | null {
+  private estimateCurrentMileage(mileageLogs: { mileage: number; date: Date }[]): number {
     const sorted = [...mileageLogs].sort((a, b) => a.date.getTime() - b.date.getTime())
     const latest = sorted[sorted.length - 1]
 
@@ -165,15 +161,7 @@ export class NotificationsService {
     }
 
     const daysSinceLatest = (Date.now() - latest.date.getTime()) / (1000 * 60 * 60 * 24)
-    const estimatedCurrentMileage = latest.mileage + daysSinceLatest * kmPerDay
-
-    // Already at or past the target based on estimated current position
-    if (estimatedCurrentMileage >= targetMileage) return new Date()
-
-    const daysUntilTarget = (targetMileage - estimatedCurrentMileage) / kmPerDay
-    const estimated = new Date()
-    estimated.setDate(estimated.getDate() + Math.round(daysUntilTarget))
-    return estimated
+    return latest.mileage + daysSinceLatest * kmPerDay
   }
 
   private isToday(date: Date): boolean {
@@ -199,63 +187,6 @@ export class NotificationsService {
       }
     } catch (err: any) {
       this.logger.warn(`Expo push error: ${err?.message}`)
-    }
-  }
-
-  // ── Mileage-based reminder triggering ────────────────────────────────────
-
-  async notifyMileageRemindersDue(vehicleId: string, reachedMileage: number): Promise<void> {
-    const reminders = await this.prisma.reminder.findMany({
-      where: {
-        vehicleId,
-        status: 'PENDING',
-        dueMileage: { lte: reachedMileage },
-        notifiedDueDate: false,
-        deletedAt: null,
-        vehicle: { deletedAt: null },
-      },
-      include: { vehicle: { include: { user: true } } },
-    })
-
-    for (const reminder of reminders) {
-      const user = reminder.vehicle.user
-      if (!user) continue
-
-      const lang = (user.language ?? 'en') as Lang
-      const typeLabel = reminderTypeLabels[reminder.type]?.[lang] ?? reminder.type.replace(/_/g, ' ')
-      const subject = copy.reminder.subjectToday(lang, typeLabel, reminder.vehicle.licensePlate)
-
-      if (user.email && user.emailNotifications) {
-        await this.mail.send(
-          user.email,
-          subject,
-          createElement(ReminderDueEmail, {
-            lang,
-            userName: user.displayName ?? user.email,
-            vehicleName: `${reminder.vehicle.make} ${reminder.vehicle.model} ${reminder.vehicle.year}`,
-            licensePlate: reminder.vehicle.licensePlate,
-            reminderType: typeLabel,
-            dueDate: reminder.dueDate?.toISOString().split('T')[0] ?? '',
-            dueMileage: reminder.dueMileage ?? undefined,
-            stage: stageLabels[0][lang],
-            note: reminder.note ?? undefined,
-          }),
-        )
-      }
-
-      if (user.expoPushToken) {
-        await this.sendPush(
-          user.expoPushToken,
-          subject,
-          `${reminder.vehicle.make} ${reminder.vehicle.model} · ${reminder.vehicle.licensePlate}`,
-          { reminderId: reminder.id, vehicleId: reminder.vehicleId },
-        )
-      }
-
-      await this.prisma.reminder.update({
-        where: { id: reminder.id },
-        data: { notifiedDueDate: true },
-      })
     }
   }
 

@@ -93,13 +93,26 @@ export class RemindersService {
   }
 
   async snooze(id: string, userId: string, dto: SnoozeReminderDto) {
-    if (!dto.days && !dto.date) {
-      throw new BadRequestException('Provide either days or date')
-    }
     const reminder = await this.prisma.reminder.findUnique({ where: { id } })
     if (!reminder) throw new NotFoundException('Reminder not found')
     await this.vehicleAuthz.requireEdit(reminder.vehicleId, userId)
 
+    const resetFlags = { notifiedStage1: false, notifiedStage2: false, notifiedStage3: false }
+
+    // Mileage-based reminder: always snooze by 1000 km
+    if (reminder.dueMileage !== null) {
+      const updated = await this.prisma.reminder.update({
+        where: { id },
+        data: { status: 'SNOOZED', dueMileage: reminder.dueMileage + 1000, ...resetFlags },
+      })
+      this.audit.log(userId, 'UPDATE', 'REMINDER', id)
+      return updated
+    }
+
+    // Date-based reminder: snooze by days or to a specific date
+    if (!dto.days && !dto.date) {
+      throw new BadRequestException('Provide either days or date')
+    }
     let newDueDate: Date
     if (dto.date) {
       newDueDate = new Date(dto.date)
@@ -107,16 +120,9 @@ export class RemindersService {
       newDueDate = new Date()
       newDueDate.setDate(newDueDate.getDate() + dto.days!)
     }
-
     const updated = await this.prisma.reminder.update({
       where: { id },
-      data: {
-        status: 'SNOOZED',
-        dueDate: newDueDate,
-        notified14Days: false,
-        notified7Days: false,
-        notifiedDueDate: false,
-      },
+      data: { status: 'SNOOZED', dueDate: newDueDate, ...resetFlags },
     })
     this.audit.log(userId, 'UPDATE', 'REMINDER', id)
     return updated
