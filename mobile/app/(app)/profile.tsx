@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { auth as api, storage as storageApi, authExtras, type StorageInfo } from '@/lib/api';
+import { auth as api, storage as storageApi, authExtras, subscriptions as subscriptionsApi, type StorageInfo } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { Divider, Spinner } from '@/components/Ui';
 import { useTheme, type ThemePref, FONT, SPACE, RADIUS } from '@/theme';
@@ -31,6 +31,9 @@ export default function ProfileScreen() {
 
   const [storageInfo, setStorageInfo] = useState<StorageInfo | null>(null);
   const [storageLoading, setStorageLoading] = useState(true);
+
+  const [checkingOut, setCheckingOut] = useState<1 | 2 | null>(null);
+  const [cancelingPlan, setCancelingPlan] = useState(false);
 
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
@@ -88,6 +91,41 @@ export default function ProfileScreen() {
     ]);
   }
 
+  async function handleCheckout(tier: 1 | 2) {
+    setCheckingOut(tier);
+    try {
+      const { url } = await subscriptionsApi.checkout(tier);
+      await Linking.openURL(url);
+    } catch (e: any) {
+      Alert.alert('Error', e.message ?? 'Could not open checkout');
+    } finally {
+      setCheckingOut(null);
+    }
+  }
+
+  async function handleCancelPlan() {
+    Alert.alert(t('profile.tierCancelPlan'), t('profile.tierCancelPlan') + '?', [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('common.delete'), style: 'destructive', onPress: async () => {
+          setCancelingPlan(true);
+          try { await subscriptionsApi.cancel(); }
+          catch (e: any) { Alert.alert('Error', e.message); }
+          finally { setCancelingPlan(false); }
+        },
+      },
+    ]);
+  }
+
+  async function handlePortal() {
+    try {
+      const { url } = await subscriptionsApi.portal();
+      await Linking.openURL(url);
+    } catch (e: any) {
+      Alert.alert('Error', e.message ?? 'Could not open billing portal');
+    }
+  }
+
   function handleExport() {
     const url = authExtras.exportData();
     Linking.openURL(url).catch(() => Alert.alert('Error', 'Could not open export URL.'));
@@ -106,12 +144,6 @@ export default function ProfileScreen() {
       setDeleteModalVisible(false);
     }
   }
-
-  const storageBarColor = storageInfo
-    ? storageInfo.files.percent > 90 ? C.danger
-    : storageInfo.files.percent > 70 ? C.warning
-    : C.success
-    : C.success;
 
   return (
     <ScrollView style={{ backgroundColor: C.bg }} contentContainerStyle={s.container}>
@@ -136,6 +168,9 @@ export default function ProfileScreen() {
             </Text>
           </View>
         )}
+        <View style={{ marginTop: SPACE[2] }}>
+          <TierBadge tier={user.tier ?? 0} t={t} C={C} />
+        </View>
       </View>
 
       {/* Appearance */}
@@ -227,6 +262,60 @@ export default function ProfileScreen() {
       </View>
 
       {/* Storage */}
+      {/* Plan */}
+      <SectionLabel label={t('profile.tier')} C={C} />
+      <View style={[s.card, { backgroundColor: C.surface, borderColor: C.border }]}>
+        <View style={[s.cardRow, { justifyContent: 'space-between' }]}>
+          <View>
+            <Text style={{ fontSize: FONT.base, fontWeight: '600', color: C.text }}>
+              {user.tier === 0 ? t('profile.tierFree') : user.tier === 1 ? t('profile.tier1') : t('profile.tier2')}
+            </Text>
+            {storageInfo && (
+              <Text style={{ fontSize: FONT.xs, color: C.muted, marginTop: 2 }}>
+                {storageInfo.documents.limit} {t('documents.title').toLowerCase()} · {storageInfo.vehicles.limit} {t('nav.vehicles').toLowerCase()}
+              </Text>
+            )}
+          </View>
+          <TierBadge tier={user.tier ?? 0} t={t} C={C} />
+        </View>
+        {(user.tier < 2 || user.hasKlingSubscription) && (
+          <View style={{ paddingHorizontal: SPACE[4], paddingBottom: SPACE[4], gap: SPACE[2] }}>
+            {user.tier < 1 && (
+              <Pressable
+                onPress={() => handleCheckout(1)}
+                disabled={checkingOut !== null}
+                style={({ pressed }) => [{ borderRadius: 8, borderWidth: 1, borderColor: C.accent, padding: 10, alignItems: 'center', opacity: pressed || checkingOut === 1 ? 0.6 : 1 }]}
+              >
+                <Text style={{ fontSize: FONT.sm, color: C.accent, fontWeight: '600' }}>
+                  {checkingOut === 1 ? '...' : t('profile.tierUpgradeTo', { plan: t('profile.tier1') })}
+                </Text>
+              </Pressable>
+            )}
+            {user.tier < 2 && (
+              <Pressable
+                onPress={() => handleCheckout(2)}
+                disabled={checkingOut !== null}
+                style={({ pressed }) => [{ borderRadius: 8, borderWidth: 1, borderColor: C.accent, padding: 10, alignItems: 'center', opacity: pressed || checkingOut === 2 ? 0.6 : 1 }]}
+              >
+                <Text style={{ fontSize: FONT.sm, color: C.accent, fontWeight: '600' }}>
+                  {checkingOut === 2 ? '...' : t('profile.tierUpgradeTo', { plan: t('profile.tier2') })}
+                </Text>
+              </Pressable>
+            )}
+            {user.hasKlingSubscription && (
+              <>
+                <Pressable onPress={handlePortal} style={({ pressed }) => [{ borderRadius: 8, borderWidth: 1, borderColor: C.border, padding: 10, alignItems: 'center', opacity: pressed ? 0.6 : 1 }]}>
+                  <Text style={{ fontSize: FONT.sm, color: C.muted, fontWeight: '600' }}>{t('profile.tierManageBilling')}</Text>
+                </Pressable>
+                <Pressable onPress={handleCancelPlan} disabled={cancelingPlan} style={({ pressed }) => [{ borderRadius: 8, borderWidth: 1, borderColor: C.dangerSubtle, padding: 10, alignItems: 'center', opacity: pressed || cancelingPlan ? 0.6 : 1 }]}>
+                  <Text style={{ fontSize: FONT.sm, color: C.danger, fontWeight: '600' }}>{t('profile.tierCancelPlan')}</Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        )}
+      </View>
+
       <SectionLabel label={t('profile.storage')} C={C} />
       <View style={[s.card, { backgroundColor: C.surface, borderColor: C.border }]}>
         {storageLoading || !storageInfo ? (
@@ -235,24 +324,7 @@ export default function ProfileScreen() {
           </View>
         ) : (
           <View style={{ padding: SPACE[4], gap: SPACE[3] }}>
-            {/* Usage bar */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-              <Text style={{ fontSize: FONT.sm, color: C.text, fontWeight: '600' }}>
-                {fmtBytes(storageInfo.files.usedBytes)} {t('profile.storageUsed')}
-              </Text>
-              <Text style={{ fontSize: FONT.xs, color: C.muted }}>
-                {t('profile.storageOf', { limit: storageInfo.files.limitMB })}
-              </Text>
-            </View>
-            <View style={{ height: 8, borderRadius: 4, backgroundColor: C.overlay, overflow: 'hidden' }}>
-              <View style={{
-                height: '100%',
-                width: `${Math.min(storageInfo.files.percent, 100)}%` as any,
-                backgroundColor: storageBarColor,
-                borderRadius: 4,
-              }} />
-            </View>
-            <View style={{ flexDirection: 'row', gap: SPACE[4], marginTop: SPACE[1] }}>
+            <View style={{ flexDirection: 'row', gap: SPACE[4] }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                 <Ionicons name="document-outline" size={13} color={C.muted} />
                 <Text style={{ fontSize: FONT.xs, color: C.muted }}>
@@ -390,6 +462,16 @@ export default function ProfileScreen() {
         </View>
       </Modal>
     </ScrollView>
+  );
+}
+
+function TierBadge({ tier, t, C }: { tier: number; t: (key: string) => string; C: ReturnType<typeof useTheme>['C'] }) {
+  const label = tier === 0 ? t('profile.tierFree') : tier === 1 ? t('profile.tier1') : t('profile.tier2');
+  const color = tier === 0 ? C.muted : tier === 1 ? '#2563eb' : C.accent;
+  return (
+    <View style={{ borderWidth: 1, borderColor: color, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, alignSelf: 'center' }}>
+      <Text style={{ fontSize: FONT.xs, fontWeight: '700', color }}>{label}</Text>
+    </View>
   );
 }
 

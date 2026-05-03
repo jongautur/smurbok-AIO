@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, usePathname, useParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Download, Trash2, FileText } from 'lucide-react'
@@ -27,6 +27,9 @@ export default function UserPage() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteText, setDeleteText] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [checkingOut, setCheckingOut] = useState<1 | 2 | null>(null)
+  const [openingPortal, setOpeningPortal] = useState(false)
+  const [canceling, setCanceling] = useState(false)
 
   if (!appUser) return null
 
@@ -94,9 +97,43 @@ export default function UserPage() {
     }
   }
 
+  async function handleCheckout(tier: 1 | 2) {
+    setCheckingOut(tier)
+    try {
+      const { data } = await api.post<{ url: string; sessionId: string }>('/subscriptions/checkout', { tier })
+      const { Kling } = await import('@klingis/embed')
+      const result = await Kling.init().checkout({ sessionId: data.sessionId })
+      if (result.success) {
+        await api.get(`/subscriptions/confirm?sessionId=${data.sessionId}`)
+        await refresh()
+      }
+    } finally {
+      setCheckingOut(null)
+    }
+  }
+
+  async function handlePortal() {
+    setOpeningPortal(true)
+    try {
+      const { data } = await api.get<{ url: string }>('/subscriptions/portal')
+      window.open(data.url, '_blank')
+    } finally {
+      setOpeningPortal(false)
+    }
+  }
+
+  async function handleCancelPlan() {
+    if (!confirm(t('user.tierCancelPlan') + '?')) return
+    setCanceling(true)
+    try {
+      await api.post('/subscriptions/cancel')
+      await refresh()
+    } finally {
+      setCanceling(false)
+    }
+  }
+
   const storageData = storage.data
-  const storagePercent = storageData?.files.percent ?? 0
-  const storageColor = storagePercent > 90 ? 'var(--danger)' : storagePercent > 70 ? '#d97706' : 'var(--accent)'
 
   const memberSince = appUser.createdAt
     ? new Date(appUser.createdAt).toLocaleDateString(appUser.language === 'en' ? 'en-GB' : 'is-IS', { year: 'numeric', month: 'long' })
@@ -125,6 +162,7 @@ export default function UserPage() {
               <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{memberSince}</p>
             </Row>
           )}
+
 
           <Row label={t('user.language')}>
             <div className="flex gap-2">
@@ -200,6 +238,49 @@ export default function UserPage() {
         </Card>
       </section>
 
+      {/* ── Plan ─────────────────────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <SectionHeading>{t('user.tier')}</SectionHeading>
+        <Card className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                {appUser.tier === 0 ? t('user.tierFree') : appUser.tier === 1 ? t('user.tier1') : t('user.tier2')}
+              </p>
+              {storageData && (
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                  {storageData.documents.limit} {t('documents.title').toLowerCase()} · {storageData.vehicles.limit} {t('nav.vehicles').toLowerCase()}
+                </p>
+              )}
+            </div>
+            <TierBadge tier={appUser.tier} t={t} />
+          </div>
+          <div className="flex flex-wrap gap-2 pt-1">
+            {appUser.tier < 1 && (
+              <Button size="sm" variant="secondary" disabled={checkingOut === 1} onClick={() => handleCheckout(1)}>
+                {checkingOut === 1 ? '...' : t('user.tierUpgradeTo', { plan: t('user.tier1') })}
+              </Button>
+            )}
+            {appUser.tier < 2 && (
+              <Button size="sm" variant="secondary" disabled={checkingOut === 2} onClick={() => handleCheckout(2)}>
+                {checkingOut === 2 ? '...' : t('user.tierUpgradeTo', { plan: t('user.tier2') })}
+              </Button>
+            )}
+            {appUser.hasKlingSubscription && (
+              <>
+                <Button size="sm" variant="secondary" disabled={openingPortal} onClick={handlePortal}>
+                  {t('user.tierManageBilling')}
+                </Button>
+                <Button size="sm" variant="secondary" disabled={canceling} onClick={handleCancelPlan}
+                  style={{ color: 'var(--danger)', borderColor: 'color-mix(in srgb, var(--danger) 30%, transparent)' }}>
+                  {t('user.tierCancelPlan')}
+                </Button>
+              </>
+            )}
+          </div>
+        </Card>
+      </section>
+
       {/* ── Storage ────────────────────────────────────────────────────────── */}
       <section className="space-y-3">
         <SectionHeading>{t('user.storage')}</SectionHeading>
@@ -208,23 +289,6 @@ export default function UserPage() {
             <div className="h-4 rounded animate-pulse" style={{ backgroundColor: 'var(--border)' }} />
           ) : storageData ? (
             <>
-              {/* File storage bar */}
-              <div>
-                <div className="flex justify-between text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                  <span>{storageData.files.usedMB.toFixed(1)} MB {t('user.storageUsed')}</span>
-                  <span>{storageData.files.limitMB} MB {t('user.storageLimit')}</span>
-                </div>
-                <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--border)' }}>
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${Math.min(storagePercent, 100)}%`,
-                      backgroundColor: storageColor,
-                    }}
-                  />
-                </div>
-              </div>
-
               {/* Counts */}
               <div className="grid grid-cols-2 gap-3">
                 <StorageStat
@@ -410,6 +474,19 @@ function StorageStat({ label, value, limit }: { label: string; value: number; li
         {value} <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>/ {limit}</span>
       </p>
     </div>
+  )
+}
+
+function TierBadge({ tier, t }: { tier: number; t: (key: string) => string }) {
+  const label = tier === 0 ? t('user.tierFree') : tier === 1 ? t('user.tier1') : t('user.tier2')
+  const color = tier === 0 ? 'var(--text-muted)' : tier === 1 ? '#2563eb' : 'var(--accent)'
+  return (
+    <span
+      className="inline-block px-2 py-0.5 rounded-md text-xs font-semibold border"
+      style={{ color, borderColor: color, backgroundColor: `color-mix(in srgb, ${color} 10%, transparent)` }}
+    >
+      {label}
+    </span>
   )
 }
 

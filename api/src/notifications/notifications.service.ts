@@ -8,9 +8,9 @@ import { WorkOrderCompletedEmail } from '../mail/templates/work-order-completed.
 import { WorkOrderSignedEmail } from '../mail/templates/work-order-signed.email'
 import { copy, reminderTypeLabels, stageLabels, type Lang } from '../mail/templates/translations'
 
-const DEFAULT_KM_PER_YEAR = 15_000
+const DEFAULT_KM_PER_YEAR = 12_000
 const DEFAULT_KM_PER_DAY = DEFAULT_KM_PER_YEAR / 365
-const MIN_DAYS_FOR_RATE = 30
+const MIN_DAYS_FOR_RATE = 7
 
 type StageFlag = 'notifiedStage1' | 'notifiedStage2' | 'notifiedStage3' | 'notifiedStage4'
 
@@ -37,6 +37,13 @@ export class NotificationsService {
     private readonly mail: MailService,
   ) {}
 
+  private async clearStalePushToken(token: string) {
+    await this.prisma.user.updateMany({
+      where: { expoPushToken: token },
+      data: { expoPushToken: null },
+    })
+  }
+
   // ── Cron: daily reminder check at 08:00 ──────────────────────────────────
 
   @Cron(CronExpression.EVERY_DAY_AT_8AM)
@@ -61,7 +68,8 @@ export class NotificationsService {
 
     for (const reminder of reminders) {
       const user = reminder.vehicle.user
-      if (!user?.email || !user.emailNotifications) continue
+      if (!user?.email) continue
+      if (!user.emailNotifications && !user.expoPushToken) continue
 
       if (reminder.dueMileage !== null) {
         await this.checkMileageStages(reminder, user)
@@ -194,6 +202,13 @@ export class NotificationsService {
       })
       if (!res.ok) {
         this.logger.warn(`Expo push failed (${res.status}) for token ${expoPushToken.slice(0, 30)}...`)
+        return
+      }
+      const json = await res.json().catch(() => null)
+      const detail = json?.data?.details?.error
+      if (detail === 'DeviceNotRegistered') {
+        this.logger.log(`Clearing stale push token: ${expoPushToken.slice(0, 30)}...`)
+        await this.clearStalePushToken(expoPushToken)
       }
     } catch (err: any) {
       this.logger.warn(`Expo push error: ${err?.message}`)

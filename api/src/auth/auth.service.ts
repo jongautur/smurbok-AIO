@@ -358,6 +358,8 @@ export class AuthService {
       language: user.language,
       currency: user.currency,
       role: user.role,
+      tier: user.tier,
+      hasKlingSubscription: user.klingSubscriptionId !== null,
       emailNotifications: user.emailNotifications,
       createdAt: user.createdAt,
     };

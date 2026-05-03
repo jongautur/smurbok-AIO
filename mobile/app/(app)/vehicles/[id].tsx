@@ -494,15 +494,7 @@ export default function VehicleDetailScreen() {
                 <View style={[s.chip, { backgroundColor: C.overlay }]}>
                   <Ionicons name="analytics-outline" size={12} color={C.mutedLight} />
                   <Text style={{ fontSize: FONT.xs, color: C.mutedLight, fontWeight: '500' }}>
-                    ~{overview.estimatedMileage.toLocaleString()} km {t('vehicles.estAbbrev')}
-                  </Text>
-                </View>
-              )}
-              {overview.estimatedDailyKm != null && (
-                <View style={[s.chip, { backgroundColor: C.overlay }]}>
-                  <Ionicons name="speedometer-outline" size={12} color={C.mutedLight} />
-                  <Text style={{ fontSize: FONT.xs, color: C.mutedLight, fontWeight: '500' }}>
-                    {overview.estimatedDailyKm} km/dag
+                    ~{overview.estimatedMileage.toLocaleString()} km{overview.estimatedDailyKm != null ? ` / ${overview.estimatedDailyKm} ${t('vehicles.kmPerDay')}` : ''}
                   </Text>
                 </View>
               )}

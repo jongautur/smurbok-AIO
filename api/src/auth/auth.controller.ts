@@ -33,7 +33,7 @@ export class AuthController {
    */
   @Post('login')
   @Public()
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   async login(
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: Response,
@@ -126,7 +126,7 @@ export class AuthController {
   @Post('magic-link')
   @Public()
   @HttpCode(HttpStatus.NO_CONTENT)
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   requestMagicLink(@Body() dto: RequestMagicLinkDto) {
     return this.authService.requestMagicLink(dto.email, dto.sessionId);
   }
@@ -138,7 +138,7 @@ export class AuthController {
    */
   @Get('magic-link/verify')
   @Public()
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   async verifyMagicLink(
     @Query('token') token: string,
     @Res({ passthrough: true }) res: Response,
@@ -161,7 +161,7 @@ export class AuthController {
    */
   @Post('magic-link/exchange')
   @Public()
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   async exchangeMagicLink(
     @Body() dto: ExchangeMagicLinkDto,
     @Res({ passthrough: true }) res: Response,

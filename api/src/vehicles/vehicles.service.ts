@@ -451,8 +451,8 @@ export class VehiclesService {
     const sorted = [...logs].sort((a, b) => a.date.getTime() - b.date.getTime());
     const latest = sorted[sorted.length - 1];
 
-    const DEFAULT_KM_PER_DAY = 15_000 / 365;
-    const MIN_DAYS_FOR_RATE = 30;
+    const DEFAULT_KM_PER_DAY = 12_000 / 365;
+    const MIN_DAYS_FOR_RATE = 7;
 
     let kmPerDay = DEFAULT_KM_PER_DAY;
     if (sorted.length >= 2) {

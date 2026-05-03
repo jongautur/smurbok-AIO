@@ -81,10 +81,7 @@ export class DocumentsService {
     const linkData = await this.resolveLinkData(vehicleId, dto.serviceRecordId, dto.expenseId)
 
     // Enforce storage limits before doing any work
-    await Promise.all([
-      this.storageService.enforceFileLimit(userId, file.buffer.length),
-      this.storageService.enforceDocumentLimit(userId),
-    ])
+    await this.storageService.enforceDocumentLimit(userId)
 
     // Validate via magic bytes — not the browser-supplied MIME type
     const { fileTypeFromBuffer } = await import('file-type')

@@ -11,12 +11,7 @@ export interface StorageDocument {
 }
 
 export interface StorageUsage {
-  files: {
-    usedBytes: number
-    usedMB: number
-    limitMB: number
-    percent: number
-  }
+  tier: number
   documents: {
     count: number
     limit: number

@@ -30,7 +30,7 @@ function validateSecrets() {
 async function bootstrap() {
   validateSecrets();
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   // Trust one hop of reverse proxy (nginx) so req.ip reflects the real client IP.
   // Required for rate limiting and security logging to use real IPs, not 127.0.0.1.

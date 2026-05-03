@@ -27,6 +27,7 @@ import { TripLogsModule } from './trip-logs/trip-logs.module';
 import { WorkOrdersModule } from './work-orders/work-orders.module';
 import { PurgeModule } from './purge/purge.module';
 import { FeedbackModule } from './feedback/feedback.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { FeedbackModule } from './feedback/feedback.module';
     NotificationsModule,
     PurgeModule,
     FeedbackModule,
+    SubscriptionsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: AppThrottlerGuard },

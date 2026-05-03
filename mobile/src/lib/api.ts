@@ -40,6 +40,8 @@ export interface UserProfile {
   displayName: string | null;
   language: 'is' | 'en';
   role: 'USER' | 'ADMIN';
+  tier: number;
+  hasKlingSubscription: boolean;
   emailNotifications: boolean;
   createdAt: string;
   token?: string;
@@ -165,7 +167,7 @@ export interface TimelineEntry {
 }
 
 export interface StorageInfo {
-  files: { usedBytes: number; usedMB: number; limitMB: number; percent: number };
+  tier: number;
   documents: { count: number; limit: number };
   vehicles: { count: number; limit: number };
   topDocuments: { id: string; label: string; type: string; fileSizeBytes: number | null; vehicleId: string; vehicleLabel: string }[];
@@ -362,6 +364,18 @@ export const documents = {
 
 export const storage = {
   info: () => request<StorageInfo>('/storage'),
+};
+
+// ── Subscriptions ─────────────────────────────────────────────────────────────
+
+export const subscriptions = {
+  checkout: (tier: 1 | 2) => request<{ url: string }>('/subscriptions/checkout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tier }),
+  }),
+  cancel: () => request<void>('/subscriptions/cancel', { method: 'POST' }),
+  portal: () => request<{ url: string }>('/subscriptions/portal'),
 };
 
 // ── Auth extras ───────────────────────────────────────────────────────────────

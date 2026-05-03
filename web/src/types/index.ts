@@ -46,6 +46,8 @@ export interface AppUser {
   language: Language
   currency: string
   role: string
+  tier: number
+  hasKlingSubscription: boolean
   emailNotifications: boolean
   createdAt: string
 }
