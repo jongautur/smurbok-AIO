@@ -360,6 +360,7 @@ export class AuthService {
       role: user.role,
       tier: user.tier,
       hasKlingSubscription: user.klingSubscriptionId !== null,
+      klingSubscriptionEndsAt: user.klingSubscriptionEndsAt ?? null,
       emailNotifications: user.emailNotifications,
       createdAt: user.createdAt,
     };

@@ -11,6 +11,13 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 
+interface CancelPreview {
+  totals: { documents: number; vehicles: number }
+  freeLimits: { documents: number; vehicles: number }
+  excessDocuments: { id: string; label: string; type: string; fileSizeBytes: number | null; vehicleLabel: string }[]
+  excessVehicles: { id: string; make: string; model: string; year: number; licensePlate: string }[]
+}
+
 export default function UserPage() {
   const t = useTranslations()
   const { appUser, refresh, logout } = useAuth()
@@ -30,6 +37,11 @@ export default function UserPage() {
   const [checkingOut, setCheckingOut] = useState<1 | 2 | null>(null)
   const [openingPortal, setOpeningPortal] = useState(false)
   const [canceling, setCanceling] = useState(false)
+  const [cancelOpen, setCancelOpen] = useState(false)
+  const [cancelPreview, setCancelPreview] = useState<CancelPreview | null>(null)
+  const [cancelPreviewLoading, setCancelPreviewLoading] = useState(false)
+  const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set())
+  const [downloadingZip, setDownloadingZip] = useState(false)
 
   if (!appUser) return null
 
@@ -122,11 +134,49 @@ export default function UserPage() {
     }
   }
 
+  async function openCancelPanel() {
+    setCancelOpen(true)
+    setCancelPreview(null)
+    setCancelPreviewLoading(true)
+    try {
+      const { data } = await api.get<CancelPreview>('/subscriptions/cancel-preview')
+      setCancelPreview(data)
+      setSelectedDocIds(new Set(data.excessDocuments.map((d) => d.id)))
+    } finally {
+      setCancelPreviewLoading(false)
+    }
+  }
+
+  function toggleDocSelection(id: string) {
+    setSelectedDocIds((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  async function handleDownloadZip() {
+    if (selectedDocIds.size === 0) return
+    setDownloadingZip(true)
+    try {
+      const ids = Array.from(selectedDocIds).join(',')
+      const { data } = await api.get(`/subscriptions/cancel-zip?ids=${ids}`, { responseType: 'blob' })
+      const url = URL.createObjectURL(data as Blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'smurbok-documents.zip'
+      a.click()
+      URL.revokeObjectURL(url)
+    } finally {
+      setDownloadingZip(false)
+    }
+  }
+
   async function handleCancelPlan() {
-    if (!confirm(t('user.tierCancelPlan') + '?')) return
     setCanceling(true)
     try {
       await api.post('/subscriptions/cancel')
+      setCancelOpen(false)
       await refresh()
     } finally {
       setCanceling(false)
@@ -252,6 +302,16 @@ export default function UserPage() {
                   {storageData.documents.limit} {t('documents.title').toLowerCase()} · {storageData.vehicles.limit} {t('nav.vehicles').toLowerCase()}
                 </p>
               )}
+              {appUser.klingSubscriptionEndsAt && (
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                  {t('user.tierEndsOn', {
+                    date: new Date(appUser.klingSubscriptionEndsAt).toLocaleDateString(
+                      appUser.language === 'en' ? 'en-GB' : 'is-IS',
+                      { year: 'numeric', month: 'long', day: 'numeric' },
+                    ),
+                  })}
+                </p>
+              )}
             </div>
             <TierBadge tier={appUser.tier} t={t} />
           </div>
@@ -271,13 +331,120 @@ export default function UserPage() {
                 <Button size="sm" variant="secondary" disabled={openingPortal} onClick={handlePortal}>
                   {t('user.tierManageBilling')}
                 </Button>
-                <Button size="sm" variant="secondary" disabled={canceling} onClick={handleCancelPlan}
+                <Button size="sm" variant="secondary"
+                  onClick={() => cancelOpen ? setCancelOpen(false) : openCancelPanel()}
                   style={{ color: 'var(--danger)', borderColor: 'color-mix(in srgb, var(--danger) 30%, transparent)' }}>
                   {t('user.tierCancelPlan')}
                 </Button>
               </>
             )}
           </div>
+
+          {cancelOpen && (
+            <div className="rounded-lg p-3 space-y-3 mt-1"
+              style={{ backgroundColor: 'color-mix(in srgb, var(--danger) 6%, var(--surface))' }}>
+              {cancelPreviewLoading && (
+                <div className="h-4 w-32 rounded animate-pulse" style={{ backgroundColor: 'var(--border)' }} />
+              )}
+              {cancelPreview && (
+                <>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    {t('user.tierCancelWarning')}
+                  </p>
+
+                  {cancelPreview.excessDocuments.length === 0 && cancelPreview.excessVehicles.length === 0 ? (
+                    <p className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
+                      {t('user.tierCancelNoExcess')}
+                    </p>
+                  ) : (
+                    <>
+                      {cancelPreview.excessDocuments.length > 0 && (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-semibold" style={{ color: 'var(--danger)' }}>
+                              {t('user.tierCancelExcessDocs', { count: cancelPreview.excessDocuments.length })}
+                            </p>
+                            <button
+                              className="text-xs underline"
+                              style={{ color: 'var(--text-muted)' }}
+                              onClick={() => {
+                                const allIds = cancelPreview.excessDocuments.map((d) => d.id)
+                                const allSelected = allIds.every((id) => selectedDocIds.has(id))
+                                setSelectedDocIds(allSelected ? new Set() : new Set(allIds))
+                              }}
+                            >
+                              {cancelPreview.excessDocuments.every((d) => selectedDocIds.has(d.id))
+                                ? t('common.deselectAll') : t('common.selectAll')}
+                            </button>
+                          </div>
+                          <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
+                            {cancelPreview.excessDocuments.map((doc) => (
+                              <label key={doc.id}
+                                className="flex items-center gap-2 rounded px-2 py-1.5 cursor-pointer"
+                                style={{ backgroundColor: 'var(--surface)' }}>
+                                <input type="checkbox" checked={selectedDocIds.has(doc.id)}
+                                  onChange={() => toggleDocSelection(doc.id)}
+                                  className="shrink-0 accent-red-500" />
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                                    {doc.label}
+                                  </p>
+                                  <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+                                    {doc.vehicleLabel}{doc.fileSizeBytes != null ? ` · ${formatBytes(doc.fileSizeBytes)}` : ''}
+                                  </p>
+                                </div>
+                              </label>
+                            ))}
+                          </div>
+                          {selectedDocIds.size > 0 && (
+                            <Button size="sm" variant="secondary" disabled={downloadingZip}
+                              onClick={handleDownloadZip} className="w-full">
+                              {downloadingZip ? '...' : t('user.tierCancelDownloadZip')}
+                            </Button>
+                          )}
+                        </div>
+                      )}
+
+                      {cancelPreview.excessVehicles.length > 0 && (
+                        <div className="space-y-1.5">
+                          <p className="text-xs font-semibold" style={{ color: 'var(--danger)' }}>
+                            {t('user.tierCancelExcessVehicles', { count: cancelPreview.excessVehicles.length })}
+                          </p>
+                          <div className="space-y-1">
+                            {cancelPreview.excessVehicles.map((v) => (
+                              <div key={v.id} className="flex items-center gap-2 rounded px-2 py-1.5"
+                                style={{ backgroundColor: 'var(--surface)' }}>
+                                <p className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
+                                  {v.year} {v.make} {v.model}
+                                </p>
+                                <p className="text-xs ml-auto shrink-0" style={{ color: 'var(--text-muted)' }}>
+                                  {v.licensePlate}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                            {t('user.tierCancelVehicleHint')}
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+
+              <div className="flex gap-2">
+                <Button variant="secondary" size="sm" className="flex-1"
+                  onClick={() => setCancelOpen(false)}>
+                  {t('common.cancel')}
+                </Button>
+                <Button variant="destructive" size="sm" className="flex-1"
+                  disabled={canceling || cancelPreviewLoading} onClick={handleCancelPlan}>
+                  {canceling ? '...' : t('user.tierCancelConfirm')}
+                </Button>
+              </div>
+            </div>
+          )}
         </Card>
       </section>
 

@@ -166,6 +166,22 @@ export interface TimelineEntry {
   note?: string | null;
 }
 
+export interface FuelEfficiency {
+  kmPerLitre: number | null;
+  litresPer100km: number | null;
+  totalKm: number | null;
+  totalLitres: number | null;
+  dataPoints: number;
+  insufficientData: boolean;
+}
+
+export interface CostSummary {
+  year: number;
+  totalYear: number;
+  byCategory: { category: string; total: number }[];
+  byMonth: { month: number; total: number; byCategory: Record<string, number> }[];
+}
+
 export interface StorageInfo {
   tier: number;
   documents: { count: number; limit: number };
@@ -266,6 +282,14 @@ export const vehicles = {
   undelete: (id: string) => request<void>(`/vehicles/${id}/undelete`, { method: 'POST' }),
   timeline: (id: string, page = 1, limit = 20) =>
     request<Paginated<TimelineEntry>>(`/vehicles/${id}/timeline?page=${page}&limit=${limit}`),
+  fuelEfficiency: (id: string) =>
+    request<FuelEfficiency>(`/vehicles/${id}/fuel-efficiency`),
+  costSummary: (id: string, year?: number) =>
+    request<CostSummary>(`/vehicles/${id}/costs/summary${year ? `?year=${year}` : ''}`),
+  initiateTransfer: (id: string, body: { toEmail: string }) =>
+    request(`/vehicles/${id}/transfer`, { method: 'POST', body: JSON.stringify(body) }),
+  createShareToken: (id: string, body?: { label?: string; expiresAt?: string }) =>
+    request<{ shareUrl: string; token: string }>(`/vehicles/${id}/share`, { method: 'POST', body: JSON.stringify(body ?? {}) }),
 };
 
 // ── Service Records ───────────────────────────────────────────────────────────

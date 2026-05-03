@@ -83,7 +83,14 @@
     "addMileage": "Skrá kílómetra",
     "addReminder": "Bæta við áminningu",
     "viewAllLogs": "Sjá allar færslur",
-    "estAbbrev": "Áætl."
+    "estAbbrev": "Áætl.",
+    "fuelEfficiency": "Eldsneytisnýting",
+    "kmPerLitre": "km/L",
+    "litresPer100km": "L/100km",
+    "fuelFillUps": "{{count}} tankingar · {{km}} km",
+    "fuelEfficiencyHint": "Skráðu kílómetrastöðu og eldsneyti með lítra til að reikna nýtni",
+    "costs": "Kostnaður",
+    "costNoData": "Enginn kostnaður skráður fyrir {{year}}"
   },
   "serviceRecords": {
     "title": "Þjónusta",

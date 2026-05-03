@@ -3,11 +3,12 @@
 import { useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Wrench, Receipt, Gauge, Bell, ArrowLeft, Pencil } from 'lucide-react'
-import { useVehicleOverview, useVehicleTimeline, useServiceRecords, useExpenses } from '@/hooks/use-vehicle'
+import { Wrench, Receipt, Gauge, Bell, ArrowLeft, Pencil, BarChart2, ArrowRightLeft, Share2 } from 'lucide-react'
+import { useVehicleOverview, useVehicleTimeline, useServiceRecords, useExpenses, useVehicleFuelEfficiency } from '@/hooks/use-vehicle'
 import { useReminders } from '@/hooks/use-reminders'
 import { useMileageLogs } from '@/hooks/use-mileage-logs'
 import { useToast } from '@/providers/toast-provider'
+import { useAuth } from '@/providers/auth-provider'
 import { AddServiceRecordForm } from '@/components/vehicles/add-service-record-form'
 import { AddExpenseForm } from '@/components/vehicles/add-expense-form'
 import { EditVehicleForm } from '@/components/vehicles/edit-vehicle-form'
@@ -20,6 +21,10 @@ import { MileageLogList } from '@/components/vehicles/mileage-log-list'
 import { TimelineList } from '@/components/timeline/timeline-list'
 import { UploadDocumentForm } from '@/components/vehicles/upload-document-form'
 import { DocumentList } from '@/components/vehicles/document-list'
+import { FuelEfficiencyCard } from '@/components/vehicles/fuel-efficiency-card'
+import { CostSummaryTab } from '@/components/vehicles/cost-summary-tab'
+import { TransferVehicleModal } from '@/components/vehicles/transfer-vehicle-modal'
+import { ShareVehicleModal } from '@/components/vehicles/share-vehicle-modal'
 import { useDocuments } from '@/hooks/use-documents'
 import { OverviewSkeleton, ListSkeleton } from '@/components/ui/skeleton'
 import { useDateLocale } from '@/hooks/use-date-locale'
@@ -28,10 +33,10 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { lp } from '@/lib/locale-path'
 
-type Tab = 'overview' | 'service' | 'expenses' | 'mileage' | 'reminders' | 'documents' | 'timeline'
-type Modal = 'service' | 'expense' | 'reminder' | 'mileage' | 'edit_vehicle' | 'document' | null
+type Tab = 'overview' | 'service' | 'expenses' | 'mileage' | 'reminders' | 'documents' | 'timeline' | 'costs'
+type Modal = 'service' | 'expense' | 'reminder' | 'mileage' | 'edit_vehicle' | 'document' | 'transfer' | 'share' | null
 
-const VALID_TABS: Tab[] = ['overview', 'service', 'expenses', 'mileage', 'reminders', 'documents', 'timeline']
+const VALID_TABS: Tab[] = ['overview', 'service', 'expenses', 'mileage', 'reminders', 'documents', 'timeline', 'costs']
 
 export default function VehiclePage() {
   const { id, locale } = useParams<{ id: string; locale: string }>()
@@ -47,6 +52,7 @@ export default function VehiclePage() {
   })
   const [modal, setModal] = useState<Modal>(null)
 
+  const { appUser } = useAuth()
   const overview = useVehicleOverview(id)
   const timeline = useVehicleTimeline(id, tab === 'timeline')
   const reminders = useReminders(id)
@@ -54,6 +60,7 @@ export default function VehiclePage() {
   const serviceRecords = useServiceRecords(id)
   const expenses = useExpenses(id)
   const mileageLogs = useMileageLogs(id)
+  const fuelEfficiency = useVehicleFuelEfficiency(id, tab === 'overview' && overview.data?.fuelType !== 'ELECTRIC')
 
   const overdueCount = reminders.data?.filter(
     (r) => r.status === 'PENDING' && r.dueDate && new Date(r.dueDate) < new Date(),
@@ -83,6 +90,11 @@ export default function VehiclePage() {
       </span>
     )},
     { key: 'documents',  label: t('documents.title') },
+    { key: 'costs',      label: (
+      <span className="flex items-center gap-1.5">
+        <BarChart2 size={13} />{t('vehicles.costs')}
+      </span>
+    )},
     { key: 'timeline',   label: t('vehicles.timeline') },
   ]
 
@@ -103,9 +115,17 @@ export default function VehiclePage() {
           </h1>
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{v.licensePlate}</p>
         </div>
-        <Button variant="secondary" size="sm" onClick={() => setModal('edit_vehicle')}>
-          <Pencil size={13} /> {t('common.edit')}
-        </Button>
+        <div className="flex gap-2 flex-wrap justify-end">
+          <Button variant="secondary" size="sm" onClick={() => setModal('share')}>
+            <Share2 size={13} /> Share
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => setModal('transfer')}>
+            <ArrowRightLeft size={13} /> Transfer
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => setModal('edit_vehicle')}>
+            <Pencil size={13} /> {t('common.edit')}
+          </Button>
+        </div>
       </div>
 
       {/* Scrollable tab bar */}
@@ -195,6 +215,8 @@ export default function VehiclePage() {
               </ul>
             </Card>
           )}
+
+          <FuelEfficiencyCard data={fuelEfficiency.data} fuelType={v.fuelType} />
 
           <div className="grid grid-cols-2 gap-2 pt-2">
             <Button onClick={() => setModal('service')} className="py-2.5">
@@ -290,6 +312,11 @@ export default function VehiclePage() {
         </div>
       )}
 
+      {/* Costs */}
+      {tab === 'costs' && (
+        <CostSummaryTab vehicleId={id} currency={appUser?.currency ?? 'kr'} language={appUser?.language ?? 'is'} />
+      )}
+
       {/* Timeline */}
       {tab === 'timeline' && (
         <TimelineList entries={timeline.data?.items} isLoading={timeline.isLoading} vehicleId={id} />
@@ -319,6 +346,12 @@ export default function VehiclePage() {
       {modal === 'document' && (
         <UploadDocumentForm vehicleId={id} onClose={() => setModal(null)}
           onSuccess={() => onFormSuccess(t('common.saveSuccess'))} />
+      )}
+      {modal === 'transfer' && (
+        <TransferVehicleModal vehicleId={id} onClose={() => setModal(null)} />
+      )}
+      {modal === 'share' && (
+        <ShareVehicleModal vehicleId={id} onClose={() => setModal(null)} />
       )}
     </Page>
   )

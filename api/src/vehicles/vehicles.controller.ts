@@ -132,6 +132,47 @@ export class VehiclesController {
     return this.vehiclesService.getFuelEfficiency(id, user.id, from, to);
   }
 
+  @Get(':id/costs/summary')
+  getCostSummary(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('year') year?: string,
+  ) {
+    return this.vehiclesService.getCostSummary(id, user.id, year ? parseInt(year) : undefined)
+  }
+
+  // ── Share Tokens ──────────────────────────────────────────────────────────────
+
+  @Public()
+  @Get('shared/:token')
+  @ApiOperation({ summary: 'Get shared vehicle history by token (public)' })
+  getSharedVehicle(@Param('token') token: string) {
+    return this.vehiclesService.getSharedVehicle(token)
+  }
+
+  @Post(':id/share')
+  createShareToken(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { label?: string; expiresAt?: string },
+  ) {
+    return this.vehiclesService.createShareToken(id, user.id, body.label, body.expiresAt)
+  }
+
+  @Get(':id/share')
+  listShareTokens(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
+    return this.vehiclesService.listShareTokens(id, user.id)
+  }
+
+  @Delete(':id/share/:tokenId')
+  revokeShareToken(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('tokenId', ParseUUIDPipe) tokenId: string,
+  ) {
+    return this.vehiclesService.revokeShareToken(id, tokenId, user.id)
+  }
+
   // ── Vehicle Transfer ─────────────────────────────────────────────────────────
 
   @Post(':id/transfer')

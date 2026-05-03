@@ -1,4 +1,5 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query } from '@nestjs/common'
+import { Body, Controller, Get, Header, HttpCode, HttpStatus, Post, Query, Res } from '@nestjs/common'
+import type { Response } from 'express'
 import { ApiSecurity, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { IsInt, Min, Max } from 'class-validator'
 import type { User } from '@prisma/client'
@@ -39,5 +40,23 @@ export class SubscriptionsController {
   @ApiOperation({ summary: 'Confirm checkout session and apply tier (no-webhook fallback)' })
   confirmCheckout(@CurrentUser() user: User, @Query('sessionId') sessionId: string) {
     return this.subscriptions.confirmCheckout(user.id, sessionId)
+  }
+
+  @Get('cancel-preview')
+  @ApiOperation({ summary: 'Preview data that exceeds free tier limits' })
+  getCancelPreview(@CurrentUser() user: User) {
+    return this.subscriptions.getCancelPreview(user.id)
+  }
+
+  @Get('cancel-zip')
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({ summary: 'Download selected excess documents as ZIP' })
+  async getCancelZip(
+    @CurrentUser() user: User,
+    @Query('ids') ids: string,
+    @Res() res: Response,
+  ) {
+    const docIds = ids ? ids.split(',').filter(Boolean) : []
+    await this.subscriptions.streamCancelZip(user.id, docIds, res)
   }
 }

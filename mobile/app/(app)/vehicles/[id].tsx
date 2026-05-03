@@ -11,12 +11,14 @@ import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
+import { Share } from 'react-native';
 import {
   vehicles as vehicleApi, serviceRecords as srApi,
   reminders as remApi, expenses as expApi, mileageLogs as mlApi,
   documents as docsApi,
   type VehicleOverview, type ServiceRecord, type Reminder,
   type Expense, type MileageLog, type Document, type TimelineEntry,
+  type FuelEfficiency, type CostSummary,
 } from '@/lib/api';
 import {
   Badge, Card, SectionHeader, Spinner, EmptyState,
@@ -79,6 +81,10 @@ export default function VehicleDetailScreen() {
   const [mlTotal, setMlTotal] = useState(0);
   const [docs, setDocs] = useState<Document[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [fuelEfficiency, setFuelEfficiency] = useState<FuelEfficiency | null>(null);
+  const [costSummary, setCostSummary] = useState<CostSummary | null>(null);
+  const [transferEmail, setTransferEmail] = useState('');
+  const [transferModalVisible, setTransferModalVisible] = useState(false);
 
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const [timelineTotal, setTimelineTotal] = useState(0);
@@ -152,6 +158,13 @@ export default function VehicleDetailScreen() {
       setMls(ml.items); setMlTotal(ml.total); setMlPage(1);
       setDocs(docList.items);
       setTimeline(tl.items); setTimelineTotal(tl.total); setTimelinePage(1);
+      // Fuel efficiency (non-electric only)
+      if (ov.fuelType !== 'ELECTRIC') {
+        vehicleApi.fuelEfficiency(id).then(setFuelEfficiency).catch(() => {});
+      }
+      // Cost summary
+      const currentYear = new Date().getFullYear();
+      vehicleApi.costSummary(id, currentYear).then(setCostSummary).catch(() => {});
     } catch (e: any) {
       setError(e.message ?? 'Failed to load');
     }
@@ -509,6 +522,13 @@ export default function VehicleDetailScreen() {
           <ActionBtn C={C} icon="notifications-outline" label={t('reminders.add')} onPress={() => push('/(app)/vehicles/add-reminder')} accent={C.warning} count={overview.counts.reminders} />
           <ActionBtn C={C} icon="speedometer-outline" label={t('mileage.add')} onPress={() => push('/(app)/vehicles/add-mileage')} accent={C.success} count={mlTotal} />
           <ActionBtn C={C} icon="card-outline" label={t('expenses.add')} onPress={() => push('/(app)/vehicles/add-expense')} accent={C.danger} count={overview.counts.expenses} />
+          <ActionBtn C={C} icon="swap-horizontal-outline" label="Transfer" onPress={() => setTransferModalVisible(true)} accent={C.muted} />
+          <ActionBtn C={C} icon="share-outline" label="Share" onPress={async () => {
+            try {
+              const result = await vehicleApi.createShareToken(id!);
+              await Share.share({ url: result.shareUrl, message: `Vehicle history for ${overview.year} ${overview.make} ${overview.model}` });
+            } catch (e: any) { Alert.alert('Error', e.message); }
+          }} accent={C.mutedLight} />
         </View>
 
         <View style={{ paddingHorizontal: SPACE[4] }}>
@@ -750,6 +770,60 @@ export default function VehicleDetailScreen() {
             )}
           </View>
 
+          {/* Fuel Efficiency */}
+          {fuelEfficiency && overview.fuelType !== 'ELECTRIC' && (
+            <View style={s.section}>
+              <SectionHeader title={t('vehicles.fuelEfficiency')} />
+              <Card>
+                {fuelEfficiency.insufficientData ? (
+                  <Text style={{ fontSize: FONT.sm, color: C.muted }}>{t('vehicles.fuelEfficiencyHint')}</Text>
+                ) : (
+                  <>
+                    <View style={{ flexDirection: 'row', gap: SPACE[3] }}>
+                      <View style={{ flex: 1, alignItems: 'center', padding: SPACE[3], backgroundColor: C.overlay, borderRadius: 8 }}>
+                        <Text style={{ fontSize: FONT.xl, fontWeight: '800', color: C.text }}>{fuelEfficiency.litresPer100km?.toFixed(1)}</Text>
+                        <Text style={{ fontSize: FONT.xs, color: C.muted, marginTop: 2 }}>{t('vehicles.litresPer100km')}</Text>
+                      </View>
+                      <View style={{ flex: 1, alignItems: 'center', padding: SPACE[3], backgroundColor: C.overlay, borderRadius: 8 }}>
+                        <Text style={{ fontSize: FONT.xl, fontWeight: '800', color: C.text }}>{fuelEfficiency.kmPerLitre?.toFixed(1)}</Text>
+                        <Text style={{ fontSize: FONT.xs, color: C.muted, marginTop: 2 }}>{t('vehicles.kmPerLitre')}</Text>
+                      </View>
+                    </View>
+                    {fuelEfficiency.totalKm != null && (
+                      <Text style={{ fontSize: FONT.xs, color: C.mutedLight, textAlign: 'center', marginTop: SPACE[2] }}>
+                        {t('vehicles.fuelFillUps', { count: fuelEfficiency.dataPoints, km: fuelEfficiency.totalKm.toLocaleString() })}
+                      </Text>
+                    )}
+                  </>
+                )}
+              </Card>
+            </View>
+          )}
+
+          {/* Cost Summary */}
+          {costSummary && (
+            <View style={s.section}>
+              <SectionHeader title={`${t('vehicles.costs')} ${costSummary.year}`} />
+              <Card>
+                {costSummary.totalYear === 0 ? (
+                  <Text style={{ fontSize: FONT.sm, color: C.muted }}>{t('vehicles.costNoData', { year: costSummary.year })}</Text>
+                ) : (
+                  <>
+                    <Text style={{ fontSize: FONT['2xl'], fontWeight: '800', color: C.text, marginBottom: SPACE[3] }}>
+                      {costSummary.totalYear.toLocaleString()} kr
+                    </Text>
+                    {costSummary.byCategory.map((row, i) => (
+                      <View key={row.category} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: SPACE[1], borderTopWidth: i === 0 ? 0 : StyleSheet.hairlineWidth, borderTopColor: C.borderSubtle }}>
+                        <Text style={{ fontSize: FONT.sm, color: C.text }}>{t(`expenseCategory.${row.category}` as any, row.category)}</Text>
+                        <Text style={{ fontSize: FONT.sm, color: C.muted, fontWeight: '600' }}>{row.total.toLocaleString()} kr</Text>
+                      </View>
+                    ))}
+                  </>
+                )}
+              </Card>
+            </View>
+          )}
+
           {/* View all logs */}
           <View style={{ marginTop: SPACE[5] }}>
             <Pressable
@@ -961,6 +1035,53 @@ export default function VehicleDetailScreen() {
             </Pressable>
           </View>
         </View>
+      </Modal>
+
+      {/* Transfer Modal */}
+      <Modal visible={transferModalVisible} transparent animationType="slide">
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' }} onPress={() => setTransferModalVisible(false)} />
+          <View style={{ backgroundColor: C.surface, borderTopLeftRadius: RADIUS.xl, borderTopRightRadius: RADIUS.xl, padding: SPACE[5], paddingBottom: 36 }}>
+            <View style={{ alignItems: 'center', marginBottom: SPACE[4] }}>
+              <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: C.borderStrong, marginBottom: SPACE[4] }} />
+              <Text style={{ fontSize: FONT.lg, fontWeight: '700', color: C.text }}>Transfer Vehicle</Text>
+            </View>
+            <Text style={{ fontSize: FONT.sm, color: C.muted, marginBottom: SPACE[3] }}>
+              Enter the recipient's email address to initiate a transfer.
+            </Text>
+            <TextInput
+              style={inputStyle(C)}
+              value={transferEmail}
+              onChangeText={setTransferEmail}
+              placeholder="Recipient email"
+              placeholderTextColor={C.mutedLight}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            <View style={{ flexDirection: 'row', gap: SPACE[3], marginTop: SPACE[4] }}>
+              <Pressable
+                style={({ pressed }) => [{ flex: 1, borderRadius: RADIUS.md, borderWidth: 1, borderColor: C.borderStrong, padding: 14, alignItems: 'center', opacity: pressed ? 0.7 : 1 }]}
+                onPress={() => { setTransferModalVisible(false); setTransferEmail(''); }}
+              >
+                <Text style={{ fontSize: FONT.base, color: C.muted, fontWeight: '600' }}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [{ flex: 1, borderRadius: RADIUS.md, backgroundColor: C.accent, padding: 14, alignItems: 'center', opacity: pressed ? 0.7 : 1 }]}
+                onPress={async () => {
+                  if (!transferEmail.trim() || !id) return;
+                  try {
+                    await vehicleApi.initiateTransfer(id, { toEmail: transferEmail.trim() });
+                    setTransferModalVisible(false);
+                    setTransferEmail('');
+                    Alert.alert('Transfer sent', `Transfer request sent to ${transferEmail.trim()}. The invitation expires in 7 days.`);
+                  } catch (e: any) { Alert.alert('Error', e.message); }
+                }}
+              >
+                <Text style={{ fontSize: FONT.base, color: '#fff', fontWeight: '700' }}>Send</Text>
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Undo toast */}

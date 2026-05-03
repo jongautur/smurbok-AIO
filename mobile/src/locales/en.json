@@ -83,7 +83,14 @@
     "addMileage": "Log Mileage",
     "addReminder": "Add Reminder",
     "viewAllLogs": "View all logs",
-    "estAbbrev": "est"
+    "estAbbrev": "est",
+    "fuelEfficiency": "Fuel efficiency",
+    "kmPerLitre": "km/L",
+    "litresPer100km": "L/100km",
+    "fuelFillUps": "{{count}} fill-ups · {{km}} km",
+    "fuelEfficiencyHint": "Log mileage readings and fuel fill-ups with litres to track efficiency",
+    "costs": "Costs",
+    "costNoData": "No expenses recorded for {{year}}"
   },
   "serviceRecords": {
     "title": "Service records",

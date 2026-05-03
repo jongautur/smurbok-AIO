@@ -443,6 +443,108 @@ export class VehiclesService {
     return { cancelled: true }
   }
 
+  // ── Cost Summary ─────────────────────────────────────────────────────────────
+
+  async getCostSummary(vehicleId: string, userId: string, year?: number) {
+    await this.vehicleAuthz.requireView(vehicleId, userId)
+    const targetYear = year ?? new Date().getFullYear()
+    const from = new Date(targetYear, 0, 1)
+    const to = new Date(targetYear, 11, 31, 23, 59, 59)
+
+    const expenses = await this.prisma.expense.findMany({
+      where: { vehicleId, deletedAt: null, date: { gte: from, lte: to } },
+      select: { category: true, amount: true, date: true },
+      orderBy: { date: 'asc' },
+    })
+
+    const byCategory: Record<string, number> = {}
+    const byMonth: Record<number, Record<string, number>> = {}
+
+    for (const e of expenses) {
+      const cat = e.category
+      const month = e.date.getMonth() + 1
+      const amt = Number(e.amount)
+      byCategory[cat] = (byCategory[cat] ?? 0) + amt
+      if (!byMonth[month]) byMonth[month] = {}
+      byMonth[month][cat] = (byMonth[month][cat] ?? 0) + amt
+    }
+
+    const totalYear = Object.values(byCategory).reduce((s, v) => s + v, 0)
+
+    return {
+      year: targetYear,
+      totalYear: Math.round(totalYear * 100) / 100,
+      byCategory: Object.entries(byCategory)
+        .map(([category, total]) => ({ category, total: Math.round(total * 100) / 100 }))
+        .sort((a, b) => b.total - a.total),
+      byMonth: Array.from({ length: 12 }, (_, i) => ({
+        month: i + 1,
+        total: Math.round(Object.values(byMonth[i + 1] ?? {}).reduce((s, v) => s + v, 0) * 100) / 100,
+        byCategory: byMonth[i + 1] ?? {},
+      })),
+    }
+  }
+
+  // ── Share Tokens ─────────────────────────────────────────────────────────────
+
+  async createShareToken(vehicleId: string, userId: string, label?: string, expiresAt?: string) {
+    await this.vehicleAuthz.requireEdit(vehicleId, userId)
+    const raw = randomBytes(32).toString('hex')
+    const tokenHash = createHash('sha256').update(raw).digest('hex')
+    await this.prisma.vehicleShareToken.create({
+      data: { vehicleId, tokenHash, label: label ?? null, expiresAt: expiresAt ? new Date(expiresAt) : null },
+    })
+    const base = process.env.FRONTEND_URL ?? 'https://smurbok.is'
+    return { shareUrl: `${base}/en/share/${raw}`, token: raw }
+  }
+
+  async listShareTokens(vehicleId: string, userId: string) {
+    await this.vehicleAuthz.requireEdit(vehicleId, userId)
+    const tokens = await this.prisma.vehicleShareToken.findMany({
+      where: { vehicleId, revokedAt: null },
+      orderBy: { createdAt: 'desc' },
+    })
+    return tokens.map(t => ({ id: t.id, label: t.label, expiresAt: t.expiresAt, createdAt: t.createdAt }))
+  }
+
+  async revokeShareToken(vehicleId: string, tokenId: string, userId: string) {
+    await this.vehicleAuthz.requireEdit(vehicleId, userId)
+    await this.prisma.vehicleShareToken.updateMany({
+      where: { id: tokenId, vehicleId },
+      data: { revokedAt: new Date() },
+    })
+  }
+
+  async getSharedVehicle(token: string) {
+    const tokenHash = createHash('sha256').update(token).digest('hex')
+    const shareToken = await this.prisma.vehicleShareToken.findUnique({
+      where: { tokenHash },
+      include: {
+        vehicle: {
+          include: {
+            serviceRecords: { where: { deletedAt: null }, orderBy: { date: 'desc' } },
+            mileageLogs: { where: { deletedAt: null }, orderBy: { date: 'desc' } },
+            expenses: { where: { deletedAt: null }, orderBy: { date: 'desc' } },
+            documents: { where: { deletedAt: null }, orderBy: { createdAt: 'desc' }, select: { id: true, label: true, type: true, fileSizeBytes: true, createdAt: true } },
+          },
+        },
+      },
+    })
+
+    if (!shareToken || shareToken.revokedAt || (shareToken.expiresAt && shareToken.expiresAt < new Date())) {
+      throw new NotFoundException('Share link not found or expired')
+    }
+
+    const v = shareToken.vehicle
+    return {
+      vehicle: { make: v.make, model: v.model, year: v.year, licensePlate: v.licensePlate, vin: v.vin, color: v.color, fuelType: v.fuelType },
+      serviceRecords: v.serviceRecords,
+      mileageLogs: v.mileageLogs,
+      expenses: v.expenses.map(e => ({ ...e, amount: Number(e.amount) })),
+      documents: v.documents,
+    }
+  }
+
   // ── private helpers ──────────────────────────────────────────────────────────
 
   private estimateCurrentMileage(logs: { mileage: number; date: Date }[]): { mileage: number; dailyKm: number } | null {

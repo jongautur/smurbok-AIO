@@ -1,7 +1,13 @@
 import { Injectable, BadRequestException, NotFoundException, UnauthorizedException, Logger } from '@nestjs/common'
 import type { User } from '@prisma/client'
+import * as path from 'path'
+import * as fs from 'fs'
+import * as archiver from 'archiver'
+import type { Response } from 'express'
 import { PrismaService } from '../prisma/prisma.service'
 import { KlingService } from './kling.service'
+
+const FREE_LIMITS = { documents: 100, vehicles: 3 }
 
 const TIER_PRODUCTS: Record<number, string | undefined> = {
   1: process.env.KLING_PRODUCT_TIER1_ID,
@@ -35,7 +41,7 @@ export class SubscriptionsService {
     const session = await this.kling.createCheckoutSession({
       customerId,
       productId,
-      successUrl: `${base}/checkout-complete`,
+      successUrl: `${base}/en/checkout-complete`,
       cancelUrl: `${base}/en/user`,
     })
 
@@ -71,7 +77,82 @@ export class SubscriptionsService {
   async cancelSubscription(user: User): Promise<void> {
     if (!user.klingSubscriptionId) throw new NotFoundException('No active subscription')
     await this.kling.cancelSubscription(user.klingSubscriptionId, false)
-    // Tier downgrade happens via webhook when subscription.canceled fires
+    const sub = await this.kling.getSubscription(user.klingSubscriptionId)
+    const endsAt = sub.current_period_end ? new Date(sub.current_period_end * 1000) : null
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { klingSubscriptionEndsAt: endsAt },
+    })
+  }
+
+  // ── Cancel preview ────────────────────────────────────────────────────────
+
+  async getCancelPreview(userId: string) {
+    const [documents, vehicles] = await Promise.all([
+      this.prisma.document.findMany({
+        where: { vehicle: { userId, deletedAt: null }, deletedAt: null },
+        select: {
+          id: true, label: true, type: true, fileSizeBytes: true,
+          createdAt: true,
+          vehicle: { select: { make: true, model: true, licensePlate: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.vehicle.findMany({
+        where: { userId, deletedAt: null },
+        select: { id: true, make: true, model: true, year: true, licensePlate: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ])
+
+    const excessDocuments = documents.slice(FREE_LIMITS.documents).map((d) => ({
+      id: d.id,
+      label: d.label,
+      type: d.type,
+      fileSizeBytes: d.fileSizeBytes,
+      createdAt: d.createdAt,
+      vehicleLabel: `${d.vehicle.make} ${d.vehicle.model} (${d.vehicle.licensePlate})`,
+    }))
+
+    const excessVehicles = vehicles.slice(FREE_LIMITS.vehicles).map((v) => ({
+      id: v.id,
+      make: v.make,
+      model: v.model,
+      year: v.year,
+      licensePlate: v.licensePlate,
+      createdAt: v.createdAt,
+    }))
+
+    return {
+      totals: { documents: documents.length, vehicles: vehicles.length },
+      freeLimits: FREE_LIMITS,
+      excessDocuments,
+      excessVehicles,
+    }
+  }
+
+  async streamCancelZip(userId: string, docIds: string[], res: Response): Promise<void> {
+    const docs = await this.prisma.document.findMany({
+      where: { id: { in: docIds }, vehicle: { userId, deletedAt: null }, deletedAt: null },
+      select: { id: true, label: true, fileUrl: true },
+    })
+
+    res.setHeader('Content-Type', 'application/zip')
+    res.setHeader('Content-Disposition', 'attachment; filename="smurbok-documents.zip"')
+
+    const archive = archiver.default('zip', { zlib: { level: 6 } })
+    archive.pipe(res)
+
+    for (const doc of docs) {
+      const fullPath = path.join('/opt/smurbok', doc.fileUrl)
+      if (fs.existsSync(fullPath)) {
+        const ext = path.extname(doc.fileUrl)
+        const safeName = doc.label.replace(/[/\\?%*:|"<>]/g, '-')
+        archive.file(fullPath, { name: `${safeName}${ext}` })
+      }
+    }
+
+    await archive.finalize()
   }
 
   // ── Billing portal ────────────────────────────────────────────────────────
@@ -137,7 +218,7 @@ export class SubscriptionsService {
     }
     const result = await this.prisma.user.updateMany({
       where: { klingCustomerId },
-      data: { tier, klingSubscriptionId: subscriptionId },
+      data: { tier, klingSubscriptionId: subscriptionId, klingSubscriptionEndsAt: null },
     })
     if (result.count === 0) {
       this.logger.warn(`No user found for Kling customer ${klingCustomerId}`)

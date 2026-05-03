@@ -35,6 +35,21 @@ export function useVehicleTimeline(id: string, enabled = true) {
   })
 }
 
+export function useVehicleFuelEfficiency(vehicleId: string, enabled = true) {
+  return useQuery({
+    queryKey: ['vehicle', vehicleId, 'fuel-efficiency'],
+    queryFn: () => api.get(`/vehicles/${vehicleId}/fuel-efficiency`).then(r => r.data),
+    enabled,
+  })
+}
+
+export function useVehicleCostSummary(vehicleId: string, year?: number) {
+  return useQuery({
+    queryKey: ['vehicle', vehicleId, 'cost-summary', year],
+    queryFn: () => api.get(`/vehicles/${vehicleId}/costs/summary${year ? `?year=${year}` : ''}`).then(r => r.data),
+  })
+}
+
 export function useAddServiceRecord(vehicleId: string) {
   const queryClient = useQueryClient()
   return useMutation({

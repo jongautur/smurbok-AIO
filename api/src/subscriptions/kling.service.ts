@@ -24,6 +24,7 @@ export interface KlingSubscription {
   customer: string
   product: string
   status: string
+  current_period_end: number | null
 }
 
 @Injectable()
@@ -63,7 +64,9 @@ export class KlingService {
   }
 
   async createCustomer(externalId: string, email: string, name?: string | null): Promise<KlingCustomer> {
-    return this.request('POST', '/v1/customers', { external_id: externalId, email, name })
+    const body: Record<string, string> = { external_id: externalId, email }
+    if (name) body.name = name
+    return this.request('POST', '/v1/customers', body)
   }
 
   async createCheckoutSession(params: {
@@ -86,6 +89,10 @@ export class KlingService {
       customer: customerId,
       return_url: returnUrl,
     })
+  }
+
+  async getSubscription(subscriptionId: string): Promise<KlingSubscription> {
+    return this.request('GET', `/v1/subscriptions/${subscriptionId}`)
   }
 
   async cancelSubscription(subscriptionId: string, immediately = false): Promise<void> {

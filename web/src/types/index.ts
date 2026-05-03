@@ -48,6 +48,7 @@ export interface AppUser {
   role: string
   tier: number
   hasKlingSubscription: boolean
+  klingSubscriptionEndsAt: string | null
   emailNotifications: boolean
   createdAt: string
 }
